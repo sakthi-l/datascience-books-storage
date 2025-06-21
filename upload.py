@@ -142,3 +142,59 @@ def search_and_display_books():
                 )
     else:
         st.warning("No matching books found.")
+
+def show_book_stats():
+    st.subheader("📈 Popular Books Stats")
+    books = list(books_meta.find().sort("downloads", -1).limit(10))
+    if books:
+        df = pd.DataFrame([{"Title": b["title"], "Downloads": b.get("downloads", 0)} for b in books])
+        st.bar_chart(df.set_index("Title"))
+    else:
+        st.info("No download stats yet.")
+
+def show_download_logs():
+    st.subheader("📥 User Download Logs")
+    logs = list(logs_col.find().sort("timestamp", -1).limit(100))
+    if logs:
+        data = []
+        for log in logs:
+            book = books_meta.find_one({"_id": log["book_id"]})
+            data.append({
+                "User": log["user"],
+                "Book Title": book["title"] if book else "Unknown",
+                "Timestamp": log["timestamp"].strftime("%Y-%m-%d %H:%M")
+            })
+        df = pd.DataFrame(data)
+        st.dataframe(df)
+    else:
+        st.info("No download logs found.")
+
+def show_user_management():
+    st.subheader("👥 User Management")
+    users = list(users_col.find())
+    for u in users:
+        st.write(f"{u['username']} ({u['role']})")
+
+def get_total_bookmarks():
+    return sum([len(doc["book_ids"]) for doc in favorites_col.find() if "book_ids" in doc])
+
+def show_bookmark_analytics():
+    st.subheader("⭐ Most Bookmarked Books")
+    all_favs = list(favorites_col.find())
+    count_dict = {}
+    for fav in all_favs:
+        for bid in fav.get("book_ids", []):
+            count_dict[bid] = count_dict.get(bid, 0) + 1
+
+    if not count_dict:
+        st.info("No bookmarks yet.")
+        return
+
+    stats = []
+    for bid, count in count_dict.items():
+        book = books_meta.find_one({"_id": bid})
+        if book:
+            stats.append({"Title": book["title"], "Bookmarks": count})
+
+    df = pd.DataFrame(stats)
+    st.bar_chart(df.set_index("Title"))
