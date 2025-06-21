@@ -30,3 +30,15 @@ def login_user(username, password):
     if user and bcrypt.checkpw(password.encode(), user["password"]):
         return True, user["role"]
     return False, None
+
+def create_admin_if_not_exists():
+    admin_user = st.secrets["admin"]["username"]
+    admin_pass = st.secrets["admin"]["password"]
+
+    existing = users_col.find_one({"username": admin_user})
+    if not existing:
+        users_col.insert_one({
+            "username": admin_user,
+            "password": admin_pass,
+            "role": "admin"
+        })
