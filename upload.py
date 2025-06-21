@@ -2,12 +2,11 @@ from bson import ObjectId
 import streamlit as st
 import pandas as pd
 import datetime
+import urllib.parse
 from pymongo import MongoClient
 from gridfs import GridFS
 
 # MongoDB connection
-import urllib.parse
-
 username = st.secrets["mongodb"]["username"]
 password = urllib.parse.quote_plus(st.secrets["mongodb"]["password"])
 cluster = st.secrets["mongodb"]["cluster"]
@@ -15,6 +14,7 @@ appname = st.secrets["mongodb"]["appname"]
 
 uri = f"mongodb+srv://{username}:{password}@{cluster}/?retryWrites=true&w=majority&appName={appname}"
 client = MongoClient(uri)
+
 db = client["ebook_library"]
 books_meta = db["books"]
 favorites_col = db["favorites"]
@@ -117,3 +117,23 @@ def show_download_logs():
     df = pd.DataFrame(data)
     st.dataframe(df)
     st.download_button("📄 Export Logs", df.to_csv(index=False), "download_logs.csv")
+
+def load_courses():
+    return [
+        "MAT445 – Probability & Statistics using R",
+        "MAT446R01 – Mathematics for Data Science",
+        "BIN522 – Python for Data Science",
+        "INT413 – RDBMS, SQL & Visualization",
+        "INT531 – Data Mining Techniques",
+        "INT530R01 – Artificial Intelligence & Reasoning",
+        "INT534R01 – Machine Learning",
+        "CSE614R01 – Big Data Mining & Analytics",
+        "INT418 – Predictive Analytics Regression & Classification",
+        "OEH014 – Ethics & Data Security",
+        "INT419R01 – Applied Spatial Data Analytics Using R",
+        "ICT601 – Machine Vision",
+        "CSE615 – Deep Learning & Applications",
+        "INT446 – Generative AI with Large Language Models",
+        "BIN533R01 – Healthcare Data Analytics",
+        "CSE542 – Social Networks & Graph Analysis"
+    ]
