@@ -13,10 +13,7 @@ client = MongoClient(f"mongodb+srv://{username}:{password}@{cluster}/?retryWrite
 db = client["ebook_library"]
 users_col = db["users"]
 
-def create_admin_if_not_exists():
-    if not users_col.find_one({"username": "admin"}):
-        hashed_pw = bcrypt.hashpw("admin123".encode(), bcrypt.gensalt())
-        users_col.insert_one({"username": "admin", "password": hashed_pw, "role": "admin"})
+    
 
 def register_user(username, password):
     if users_col.find_one({"username": username}):
