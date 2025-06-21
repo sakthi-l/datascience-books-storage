@@ -29,8 +29,8 @@ def login_user(username, password):
     return False, None
 
 def create_admin_if_not_exists():
-    admin_user = st.secrets["admin"]["username"]
-    admin_pass = st.secrets["admin"]["password"]
+    admin_user = st.secrets["mongodb"]["username"]
+    admin_pass = st.secrets["mongodb"]["password"]
 
     existing = users_col.find_one({"username": admin_user})
     if not existing:
