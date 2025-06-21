@@ -29,22 +29,22 @@ fs = GridFS(db)
 # ------------------------------
 def load_courses():
     return [
-        "MAT445 – Probability & Statistics using R",
-        "MAT446R01 – Mathematics for Data Science",
-        "BIN522 – Python for Data Science",
-        "INT413 – RDBMS, SQL & Visualization",
-        "INT531 – Data Mining Techniques",
-        "INT530R01 – Artificial Intelligence & Reasoning",
-        "INT534R01 – Machine Learning",
-        "CSE614R01 – Big Data Mining & Analytics",
-        "INT418 – Predictive Analytics Regression & Classification",
-        "OEH014 – Ethics & Data Security",
-        "INT419R01 – Applied Spatial Data Analytics Using R",
-        "ICT601 – Machine Vision",
-        "CSE615 – Deep Learning & Applications",
-        "INT446 – Generative AI with Large Language Models",
-        "BIN533R01 – Healthcare Data Analytics",
-        "CSE542 – Social Networks & Graph Analysis"
+        "Probability & Statistics using R",
+        "Mathematics for Data Science",
+        "Python for Data Science",
+        "RDBMS, SQL & Visualization",
+        "Data Mining Techniques",
+        "Artificial Intelligence & Reasoning",
+        "Machine Learning",
+        "Big Data Mining & Analytics",
+        "Predictive Analytics Regression & Classification",
+        "Ethics & Data Security",
+        "Applied Spatial Data Analytics Using R",
+        "Machine Vision",
+        "Deep Learning & Applications",
+        "Generative AI with Large Language Models",
+        "Healthcare Data Analytics",
+        "Social Networks & Graph Analysis"
     ]
 
 # ------------------------------
