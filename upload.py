@@ -204,7 +204,7 @@ def show_user_management():
         if user['username'] != "admin":
             if st.button("❌ Remove User", key=str(user['_id'])):
                 users_col.delete_one({"_id": user["_id"]})
-                st.experimental_rerun()
+                st.rerun()
     if users:
         df = pd.DataFrame(users)
         st.download_button("📄 Export User List", df.to_csv(index=False), "users.csv")
