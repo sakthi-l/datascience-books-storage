@@ -3,79 +3,102 @@ from auth import register_user, login_user, create_admin_if_not_exists
 from upload import (
     upload_book_ui,
     search_and_display_books,
-    show_analytics,
-    load_courses,
     show_bookmarks,
     show_book_stats,
     show_download_logs,
+    show_analytics,
     show_user_management,
-    show_bookmark_analytics,
-    get_total_bookmarks
+    show_bookmark_analytics
 )
 
-st.set_page_config(page_title="Data Science Ebook Library", layout="centered")
-
+# Ensure admin account exists
 create_admin_if_not_exists()
 
-# Theme toggle
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
-if st.sidebar.toggle("🌙 Dark Mode", value=True):
-    st.markdown("<style>body { background-color: #111; color: #eee; }</style>", unsafe_allow_html=True)
-else:
-    st.session_state.theme = "light"
-    st.markdown("<style>body { background-color: #fff; color: #000; }</style>", unsafe_allow_html=True)
+# Session state setup
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.session_state.role = None
 
-# Sidebar navigation
-page = st.sidebar.selectbox("Navigation", ["Login", "Register"])
+# App Title and Search (Always visible)
+st.title("📚 Data Science eBook Library")
 
-# Login Page
-if page == "Login":
-    st.subheader("🔐 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+st.subheader("🔎 Search for Books")
+search_and_display_books()
 
-    if st.button("Login"):
-        success, role = login_user(username, password)
-        if success:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.session_state.role = role
-            st.success(f"Welcome {username}!")
-        else:
-            st.error("Invalid username or password")
+st.divider()
 
-# Register Page
-elif page == "Register":
-    st.subheader("📝 Register")
-    new_user = st.text_input("Choose Username")
-    new_pass = st.text_input("Choose Password", type="password")
+# Login Form
+if not st.session_state.logged_in:
+    with st.expander("🔐 Login to access more features", expanded=True):
+        st.subheader("🔐 Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            success, role = login_user(username, password)
+            if success:
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.session_state.role = role
+                st.success(f"Logged in as: {username} ({role})")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password")
 
-    if st.button("Register"):
-        if register_user(new_user, new_pass):
-            st.success("Registration successful. Please login.")
-        else:
-            st.error("Username already exists")
+        st.markdown("---")
+        st.subheader("🆕 Register")
+        new_user = st.text_input("New Username")
+        new_pass = st.text_input("New Password", type="password")
+        if st.button("Register"):
+            if register_user(new_user, new_pass):
+                st.success("User registered successfully. You can now login.")
+            else:
+                st.warning("Username already exists.")
 
-# Role-based dashboard
-if st.session_state.get("logged_in"):
-    st.sidebar.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
-    if st.session_state.role == "admin":
-        st.title("📚 Admin Dashboard")
+# Admin/User Dashboard
+if st.session_state.logged_in:
+    st.sidebar.title("Navigation")
+    role = st.session_state.role
+    username = st.session_state.username
+    st.sidebar.write(f"Logged in as: {username} ({role})")
+
+    menu = [
+        "🔎 Search", "📤 Upload", "⭐ Bookmarks", "📊 Analytics", "📈 Popular Stats",
+        "📥 Logs", "⭐ Bookmark Analytics", "👥 User Management", "🚪 Logout"
+    ]
+    choice = st.sidebar.radio("Go to", menu)
+
+    if choice == "🔎 Search":
+        st.subheader("🔎 Search for Books")
+        search_and_display_books()
+
+    elif choice == "📤 Upload" and role == "admin":
         upload_book_ui()
-        total_bookmarks = get_total_bookmarks()
-        st.info(f"⭐ Total Bookmarks Across Library: {total_bookmarks}")
-        show_analytics()
-        show_book_stats()
-        show_bookmark_analytics()
-        show_download_logs()
-        show_user_management()
-    elif st.session_state.role == "user":
-        tab = st.sidebar.radio("View", ["Search Books", "My Bookmarks"])
-        if tab == "Search Books":
-            st.title("📖 Search the Ebook Library")
-            search_and_display_books()
-        elif tab == "My Bookmarks":
-            st.title("⭐ Your Bookmarked Books")
-            show_bookmarks()
 
+    elif choice == "⭐ Bookmarks":
+        show_bookmarks()
+
+    elif choice == "📊 Analytics" and role == "admin":
+        show_analytics()
+
+    elif choice == "📈 Popular Stats" and role == "admin":
+        show_book_stats()
+
+    elif choice == "📥 Logs" and role == "admin":
+        show_download_logs()
+
+    elif choice == "⭐ Bookmark Analytics" and role == "admin":
+        show_bookmark_analytics()
+
+    elif choice == "👥 User Management" and role == "admin":
+        show_user_management()
+
+    elif choice == "🚪 Logout":
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.session_state.role = None
+        st.success("Logged out successfully.")
+        st.experimental_rerun()
+
+    else:
+        st.warning("You do not have access to this section.")
