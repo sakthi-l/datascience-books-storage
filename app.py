@@ -3,11 +3,10 @@ from auth import register_user, login_user, create_admin_if_not_exists
 from upload import (
     upload_book_ui,
     search_and_display_books,
-    show_bookmarks,
     show_book_stats,
     show_download_logs,
-    show_analytics,
     show_user_management,
+    get_total_bookmarks,
     show_bookmark_analytics
 )
 
