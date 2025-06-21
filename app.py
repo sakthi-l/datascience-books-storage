@@ -7,7 +7,10 @@ from upload import (
     load_courses,
     show_bookmarks,
     show_book_stats,
-    show_download_logs
+    show_download_logs,
+    show_user_management,
+    show_bookmark_analytics,
+    get_total_bookmarks
 )
 
 st.set_page_config(page_title="Data Science Ebook Library", layout="centered")
@@ -60,9 +63,13 @@ if st.session_state.get("logged_in"):
     if st.session_state.role == "admin":
         st.title("📚 Admin Dashboard")
         upload_book_ui()
+        total_bookmarks = get_total_bookmarks()
+        st.info(f"⭐ Total Bookmarks Across Library: {total_bookmarks}")
         show_analytics()
         show_book_stats()
+        show_bookmark_analytics()
         show_download_logs()
+        show_user_management()
     elif st.session_state.role == "user":
         tab = st.sidebar.radio("View", ["Search Books", "My Bookmarks"])
         if tab == "Search Books":
@@ -71,3 +78,4 @@ if st.session_state.get("logged_in"):
         elif tab == "My Bookmarks":
             st.title("⭐ Your Bookmarked Books")
             show_bookmarks()
+
