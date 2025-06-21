@@ -1,4 +1,8 @@
-streamlit
-pymongo
-bcrypt
-PyMuPDF
+streamlit==1.46.0
+pymongo==4.13.2
+bcrypt==4.0.1
+pymupdf==1.26.1        # for reading PDF content
+pandas==2.3.0
+dnspython==2.4.2
+python-dateutil==2.9.0.post0
+pdfminer.six==20221105  # optional: deep PDF text extraction
