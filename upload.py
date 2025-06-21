@@ -44,12 +44,30 @@ def load_courses():
         "CSE542 – Social Networks & Graph Analysis"
     ]
 
+def extract_pdf_metadata(uploaded_file):
+    try:
+        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+        text = "\n".join([page.get_text() for page in doc])
+        doc.close()
+        lines = text.splitlines()
+        title = lines[0] if lines else ""
+        author = ""
+        for line in lines[:20]:
+            if "author" in line.lower():
+                author = line.split(":")[-1].strip()
+        return title.strip(), author.strip()
+    except Exception:
+        return "", ""
+
 def upload_book_ui():
     st.subheader("📤 Upload a New Book (PDF)")
     uploaded_file = st.file_uploader("Select PDF File", type="pdf")
     if uploaded_file:
-        title = st.text_input("Title")
-        author = st.text_input("Author")
+        auto_title, auto_author = extract_pdf_metadata(uploaded_file)
+        uploaded_file.seek(0)
+
+        title = st.text_input("Title", value=auto_title)
+        author = st.text_input("Author", value=auto_author)
         course_name = st.selectbox("Course Name", ["--"] + load_courses())
         keywords = st.text_input("Keywords (comma-separated)")
         isbn = st.text_input("ISBN")
@@ -166,6 +184,7 @@ def show_download_logs():
             })
         df = pd.DataFrame(data)
         st.dataframe(df)
+        st.download_button("📄 Export Logs", df.to_csv(index=False), "download_logs.csv")
     else:
         st.info("No download logs found.")
 
@@ -174,6 +193,7 @@ def show_user_management():
     users = list(users_col.find())
     for u in users:
         st.write(f"{u['username']} ({u['role']})")
+    st.rerun()
 
 def get_total_bookmarks():
     return sum([len(doc["book_ids"]) for doc in favorites_col.find() if "book_ids" in doc])
