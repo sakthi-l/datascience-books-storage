@@ -6,7 +6,15 @@ from pymongo import MongoClient
 from gridfs import GridFS
 
 # MongoDB connection
-client = MongoClient(st.secrets["mongodb"]["uri"])
+import urllib.parse
+
+username = st.secrets["mongodb"]["username"]
+password = urllib.parse.quote_plus(st.secrets["mongodb"]["password"])
+cluster = st.secrets["mongodb"]["cluster"]
+appname = st.secrets["mongodb"]["appname"]
+
+uri = f"mongodb+srv://{username}:{password}@{cluster}/?retryWrites=true&w=majority&appName={appname}"
+client = MongoClient(uri)
 db = client["ebook_library"]
 books_meta = db["books"]
 favorites_col = db["favorites"]
