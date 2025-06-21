@@ -1,58 +1,41 @@
-import fitz  # PyMuPDF
+from bson import ObjectId
 import streamlit as st
-import gridfs
+import pandas as pd
 import datetime
 from pymongo import MongoClient
-import urllib.parse
+from gridfs import GridFS
 
 # MongoDB connection
-username = st.secrets["mongodb"]["username"]
-password = urllib.parse.quote_plus(st.secrets["mongodb"]["password"])
-cluster = st.secrets["mongodb"]["cluster"]
-appname = st.secrets["mongodb"]["appname"]
-
-client = MongoClient(f"mongodb+srv://{username}:{password}@{cluster}/?retryWrites=true&w=majority&appName={appname}")
+client = MongoClient(st.secrets["mongodb"]["uri"])
 db = client["ebook_library"]
-fs = gridfs.GridFS(db)
-books_meta = db["books_metadata"]
-
-def extract_pdf_metadata(file_bytes):
-    doc = fitz.open(stream=file_bytes, filetype="pdf")
-    text = "".join([page.get_text() for page in doc[:5]])
-    metadata = doc.metadata
-    return {
-        "title": metadata.get("title") or text[:100].strip(),
-        "author": metadata.get("author") or "Unknown",
-        "keywords": metadata.get("keywords") or "data science",
-        "isbn": "Unknown",
-        "language": "English",
-        "course_name": "General",
-        "published_year": 2024
-    }
-
-def upload_book_ui():
-    st.subheader("📤 Upload PDF Book")
-    uploaded_file = st.file_uploader("Upload PDF", type="pdf")
-
-    if uploaded_file:
-        file_bytes = uploaded_file.read()
-        metadata = extract_pdf_metadata(file_bytes)
-
-        if st.button("Save Book"):
-            file_id = fs.put(file_bytes, filename=uploaded_file.name)
-            metadata.update({
-                "file_id": file_id,
-                "filename": uploaded_file.name,
-                "uploaded_by": st.session_state["username"],
-                "uploaded_at": datetime.datetime.now()
-            })
-            books_meta.insert_one(metadata)
-            st.success("Book uploaded successfully!")
-from bson import ObjectId
-import datetime
-
+books_meta = db["books"]
+favorites_col = db["favorites"]
 logs_col = db["logs"]
+fs = GridFS(db)
 
+def search_and_display_books():
+    search_title = st.text_input("🔎 Enter book title")
+    if search_title:
+        matches = books_meta.find({"title": {"$regex": search_title, "$options": "i"}})
+        results = list(matches)
+        if results:
+            st.write(f"### {len(results)} result(s) found:")
+            for book in results:
+                with st.container():
+                    st.markdown(f"#### 📘 {book.get('title')}")
+                    st.write(f"**Author:** {book.get('author')}")
+                    st.write(f"**Course Name:** {book.get('course_name')}")
+                    st.write(f"**Published Year:** {book.get('published_year')}")
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=fs.get(book["file_id"]).read(),
+                        file_name=book["filename"],
+                        mime="application/pdf",
+                        on_click=log_download,
+                        kwargs={"book_id": str(book["_id"])}
+                    )
+        else:
+            st.warning("No matching books found.")
 
 def show_bookmarks():
     bookmarks = favorites_col.find_one({"user": st.session_state.username})
@@ -78,13 +61,11 @@ def show_bookmarks():
                 kwargs={"book_id": str(book["_id"])}
             )
 
-
 def increment_download_count(book_id):
     books_meta.update_one(
         {"_id": ObjectId(book_id)},
         {"$inc": {"downloads": 1, "views": 1}}
     )
-
 
 def log_download(book_id):
     logs_col.insert_one({
@@ -94,7 +75,6 @@ def log_download(book_id):
         "action": "download"
     })
     increment_download_count(book_id)
-
 
 def show_book_stats():
     st.subheader("📈 Popular Books Stats")
@@ -108,7 +88,6 @@ def show_book_stats():
     rows = [(book.get("title", "Untitled"), book.get("downloads", 0)) for book in data]
     df = pd.DataFrame(rows, columns=["Book Title", "Download Count"])
     st.bar_chart(df.set_index("Book Title"))
-
 
 def show_download_logs():
     st.subheader("📥 User Download Logs")
