@@ -1,4 +1,3 @@
-# ---------------- upload.py ----------------
 from bson import ObjectId
 import streamlit as st
 import pandas as pd
@@ -6,9 +5,10 @@ import datetime
 import urllib.parse
 from pymongo import MongoClient
 from gridfs import GridFS
-import fitz  # pymupdf for reading PDF content
 
-# MongoDB connection
+# ------------------------------
+# MongoDB Connection
+# ------------------------------
 username = st.secrets["mongodb"]["username"]
 password = urllib.parse.quote_plus(st.secrets["mongodb"]["password"])
 cluster = st.secrets["mongodb"]["cluster"]
@@ -24,6 +24,9 @@ logs_col = db["logs"]
 users_col = db["users"]
 fs = GridFS(db)
 
+# ------------------------------
+# Helper: Load Course List
+# ------------------------------
 def load_courses():
     return [
         "MAT445 – Probability & Statistics using R",
@@ -44,52 +47,81 @@ def load_courses():
         "CSE542 – Social Networks & Graph Analysis"
     ]
 
-def extract_pdf_metadata(uploaded_file):
-    try:
-        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-        text = "\n".join([page.get_text() for page in doc])
-        doc.close()
-        lines = text.splitlines()
-        title = lines[0] if lines else ""
-        author = ""
-        for line in lines[:20]:
-            if "author" in line.lower():
-                author = line.split(":")[-1].strip()
-        return title.strip(), author.strip()
-    except Exception:
-        return "", ""
-
+# ------------------------------
+# Upload UI
+# ------------------------------
 def upload_book_ui():
-    st.subheader("📤 Upload a New Book (PDF)")
+    st.subheader("📄 Upload a New Book (PDF)")
     uploaded_file = st.file_uploader("Select PDF File", type="pdf")
-    if uploaded_file:
-        auto_title, auto_author = extract_pdf_metadata(uploaded_file)
-        uploaded_file.seek(0)
 
-        title = st.text_input("Title", value=auto_title)
-        author = st.text_input("Author", value=auto_author)
+    if uploaded_file:
+        # Fetch distinct values from MongoDB
+        existing_titles = books_meta.distinct("title")
+        existing_authors = books_meta.distinct("author")
+        existing_keywords = books_meta.distinct("keywords")
+
+        # Title Suggestion
+        title = st.selectbox(
+            "Title (select existing or type new)",
+            options=sorted(existing_titles) + ["<New Title>"],
+            index=len(existing_titles),
+            key="book_title"
+        )
+        if title == "<New Title>":
+            title = st.text_input("Enter New Title", key="custom_title")
+
+        # Author Suggestion
+        author = st.selectbox(
+            "Author (select existing or type new)",
+            options=sorted(set(filter(None, existing_authors))) + ["<New Author>"],
+            index=len(set(existing_authors)),
+            key="book_author"
+        )
+        if author == "<New Author>":
+            author = st.text_input("Enter New Author", key="custom_author")
+
+        # Course Selection
         course_name = st.selectbox("Course Name", ["--"] + load_courses())
-        keywords = st.text_input("Keywords (comma-separated)")
+
+        # Keyword Suggestion
+        flat_keywords = sorted({kw.strip() for kws in existing_keywords if isinstance(kws, list) for kw in kws})
+        keyword_input = st.multiselect(
+            "Keywords (choose or type new)",
+            options=flat_keywords,
+            key="book_keywords"
+        )
+
         isbn = st.text_input("ISBN")
         language = st.text_input("Language")
         year = st.text_input("Published Year")
 
         if st.button("Upload"):
+            # Duplicate check
+            existing = books_meta.find_one({
+                "title": title.strip(),
+                "course_name": course_name.strip()
+            })
+            if existing:
+                st.error("❌ A book with the same title and course already exists.")
+                return
+
+            # Store file in GridFS and save metadata
             file_id = fs.put(uploaded_file, filename=uploaded_file.name)
             books_meta.insert_one({
-                "title": title,
-                "author": author,
-                "course_name": course_name,
-                "keywords": [kw.strip() for kw in keywords.split(",")],
-                "isbn": isbn,
-                "language": language,
-                "published_year": year,
+                "title": title.strip(),
+                "author": author.strip(),
+                "course_name": course_name.strip(),
+                "keywords": [kw.strip() for kw in keyword_input if kw.strip()],
+                "isbn": isbn.strip(),
+                "language": language.strip(),
+                "published_year": year.strip(),
                 "filename": uploaded_file.name,
                 "file_id": file_id,
                 "downloads": 0,
                 "views": 0
             })
-            st.success("Book uploaded successfully!")
+            st.success("✅ Book uploaded successfully!")
+
 
 def toggle_bookmark(book_id):
     existing = favorites_col.find_one({"user": st.session_state.username})
