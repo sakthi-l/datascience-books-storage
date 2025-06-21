@@ -113,7 +113,9 @@ def log_download(book_id):
 def search_and_display_books():
     st.header("📚 Data Science eBook Library")
     st.subheader("🔎 Search for Books")
+
     title_input = st.text_input("Search by title", key="basic_title")
+    search_triggered = st.button("🔍 Search")
 
     with st.expander("🔍 Advanced Search Filters"):
         author = st.text_input("Author", key="search_author")
@@ -122,44 +124,46 @@ def search_and_display_books():
         language = st.text_input("Language", key="search_language")
         year = st.text_input("Published Year", key="search_year")
 
-    query = {}
-    if title_input:
-        query["title"] = {"$regex": title_input, "$options": "i"}
-    if author:
-        query["author"] = {"$regex": author, "$options": "i"}
-    if course and course != "--":
-        query["course_name"] = course
-    if isbn:
-        query["isbn"] = isbn
-    if language:
-        query["language"] = {"$regex": language, "$options": "i"}
-    if year:
-        query["published_year"] = year
+    if search_triggered:
+        query = {}
+        if title_input:
+            query["title"] = {"$regex": title_input, "$options": "i"}
+        if author:
+            query["author"] = {"$regex": author, "$options": "i"}
+        if course and course != "--":
+            query["course_name"] = course
+        if isbn:
+            query["isbn"] = isbn
+        if language:
+            query["language"] = {"$regex": language, "$options": "i"}
+        if year:
+            query["published_year"] = year
 
-    results = list(books_meta.find(query))
-    if results:
-        st.write(f"### {len(results)} result(s) found:")
-        for book in results:
-            with st.container():
-                st.markdown(f"#### 📘 {book.get('title')}")
-                st.write(f"**Author:** {book.get('author')}")
-                st.write(f"**Course Name:** {book.get('course_name')}")
-                st.write(f"**Published Year:** {book.get('published_year')}")
+        results = list(books_meta.find(query))
+        if results:
+            st.write(f"### {len(results)} result(s) found:")
+            for book in results:
+                with st.container():
+                    st.markdown(f"#### 📘 {book.get('title')}")
+                    st.write(f"**Author:** {book.get('author')}")
+                    st.write(f"**Course Name:** {book.get('course_name')}")
+                    st.write(f"**Published Year:** {book.get('published_year')}")
 
-                is_bookmarked = favorites_col.find_one({"user": st.session_state.username, "book_ids": book["_id"]})
-                if st.button("⭐ Bookmark" if not is_bookmarked else "✅ Bookmarked", key=f"bookmark_{book['_id']}"):
-                    toggle_bookmark(book["_id"])
+                    is_bookmarked = favorites_col.find_one({"user": st.session_state.username, "book_ids": book["_id"]})
+                    if st.button("⭐ Bookmark" if not is_bookmarked else "✅ Bookmarked", key=f"bookmark_{book['_id']}"):
+                        toggle_bookmark(book["_id"])
 
-                st.download_button(
-                    label="📥 Download PDF",
-                    data=fs.get(book["file_id"]).read(),
-                    file_name=book["filename"],
-                    mime="application/pdf",
-                    on_click=log_download,
-                    kwargs={"book_id": str(book["_id"])}
-                )
-    else:
-        st.warning("No matching books found.")
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=fs.get(book["file_id"]).read(),
+                        file_name=book["filename"],
+                        mime="application/pdf",
+                        on_click=log_download,
+                        kwargs={"book_id": str(book["_id"])}
+                    )
+        else:
+            st.warning("No matching books found.")
+
 
 def show_book_stats():
     st.subheader("📈 Popular Books Stats")
