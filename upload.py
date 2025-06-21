@@ -154,13 +154,15 @@ def search_and_display_books():
                         toggle_bookmark(book["_id"])
 
                     st.download_button(
-                        label="📥 Download PDF",
-                        data=fs.get(book["file_id"]).read(),
-                        file_name=book["filename"],
-                        mime="application/pdf",
-                        on_click=log_download,
-                        kwargs={"book_id": str(book["_id"])}
-                    )
+    label="📥 Download PDF",
+    data=fs.get(book["file_id"]).read(),
+    file_name=book["filename"],
+    mime="application/pdf",
+    key=f"download_{book['_id']}",  # 👈 make each button unique
+    on_click=log_download,
+    kwargs={"book_id": str(book["_id"])}
+)
+
         else:
             st.warning("No matching books found.")
 
