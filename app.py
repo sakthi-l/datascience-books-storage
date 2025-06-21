@@ -41,7 +41,7 @@ if not st.session_state.logged_in:
                 st.session_state.username = username
                 st.session_state.role = role
                 st.success(f"Logged in as: {username} ({role})")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Invalid username or password")
 
@@ -98,7 +98,7 @@ if st.session_state.logged_in:
         st.session_state.username = None
         st.session_state.role = None
         st.success("Logged out successfully.")
-        st.experimental_rerun()
+        st.rerun()
 
     else:
         st.warning("You do not have access to this section.")
