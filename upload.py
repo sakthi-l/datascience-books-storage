@@ -239,3 +239,8 @@ def log_download(book_id):
         {"_id": ObjectId(book_id)},
         {"$inc": {"downloads": 1, "views": 1}}
     )
+def get_total_bookmarks():
+    result = favorites_col.aggregate([
+        {"$group": {"_id": None, "count": {"$sum": {"$size": "$book_ids"}}}}
+    ])
+    return next(result, {}).get("count", 0)
