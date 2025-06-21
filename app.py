@@ -1,5 +1,5 @@
+# ---------------- app.py ----------------
 import streamlit as st
-from auth import register_user, login_user, create_admin_if_not_exists
 from upload import (
     upload_book_ui,
     search_and_display_books,
@@ -9,95 +9,84 @@ from upload import (
     get_total_bookmarks,
     show_bookmark_analytics
 )
+from pymongo import MongoClient
+import urllib.parse
 
-# Ensure admin account exists
-create_admin_if_not_exists()
+# --- MongoDB Connection ---
+username = st.secrets["mongodb"]["username"]
+password = urllib.parse.quote_plus(st.secrets["mongodb"]["password"])
+cluster = st.secrets["mongodb"]["cluster"]
+appname = st.secrets["mongodb"]["appname"]
 
-# Session state setup
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
-    st.session_state.role = None
+uri = f"mongodb+srv://{username}:{password}@{cluster}/?retryWrites=true&w=majority&appName={appname}"
+client = MongoClient(uri)
+db = client["ebook_library"]
+users_col = db["users"]
 
-# App Title and Search (Always visible)
-st.title("📚 Data Science eBook Library")
+# --- Session State Initialization ---
+if "username" not in st.session_state:
+    st.session_state.username = ""
+    st.session_state.role = ""
 
-st.subheader("🔎 Search for Books")
-search_and_display_books()
-
-st.divider()
-
-# Login Form
-if not st.session_state.logged_in:
-    with st.expander("🔐 Login to access more features", expanded=True):
+# --- Sidebar ---
+with st.sidebar:
+    st.title("📚 Navigation")
+    if st.session_state.username:
+        st.write(f"Logged in as: {st.session_state.username} ({st.session_state.role})")
+        option = st.radio("Go to", ["🔎 Search", "📤 Upload", "📊 Analytics", "📈 Popular Stats", "📥 Logs", "⭐ Bookmark Analytics"])
+        if st.session_state.role == "admin":
+            if st.button("👥 User Management"):
+                show_user_management()
+        if st.button("🚪 Logout"):
+            st.session_state.username = ""
+            st.session_state.role = ""
+            st.rerun()
+    else:
         st.subheader("🔐 Login")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         if st.button("Login"):
-            success, role = login_user(username, password)
-            if success:
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.role = role
-                st.success(f"Logged in as: {username} ({role})")
+            user = users_col.find_one({"username": username, "password": password})
+            if user:
+                st.session_state.username = user["username"]
+                st.session_state.role = user["role"]
+                st.success("Logged in successfully")
                 st.rerun()
             else:
-                st.error("Invalid username or password")
-
+                st.error("Invalid credentials")
         st.markdown("---")
-        st.subheader("🆕 Register")
+        st.subheader("📝 Register")
         new_user = st.text_input("New Username")
         new_pass = st.text_input("New Password", type="password")
         if st.button("Register"):
-            if register_user(new_user, new_pass):
-                st.success("User registered successfully. You can now login.")
+            if users_col.find_one({"username": new_user}):
+                st.error("Username already exists")
             else:
-                st.warning("Username already exists.")
+                users_col.insert_one({"username": new_user, "password": new_pass, "role": "user"})
+                st.success("Registration successful. Please login.")
 
-# Admin/User Dashboard
-if st.session_state.logged_in:
-    st.sidebar.title("Navigation")
-    role = st.session_state.role
-    username = st.session_state.username
-    st.sidebar.write(f"Logged in as: {username} ({role})")
-
-    menu = [
-        "🔎 Search", "📤 Upload", "⭐ Bookmarks", "📊 Analytics", "📈 Popular Stats",
-        "📥 Logs", "⭐ Bookmark Analytics", "👥 User Management", "🚪 Logout"
-    ]
-    choice = st.sidebar.radio("Go to", menu)
-
-    if choice == "🔎 Search":
-        st.subheader("🔎 Search for Books")
+# --- Main ---
+if st.session_state.username:
+    if option == "🔎 Search":
         search_and_display_books()
-
-    elif choice == "📤 Upload" and role == "admin":
-        upload_book_ui()
-
-    elif choice == "⭐ Bookmarks":
-        show_bookmarks()
-
-    elif choice == "📊 Analytics" and role == "admin":
-        show_analytics()
-
-    elif choice == "📈 Popular Stats" and role == "admin":
+    elif option == "📤 Upload":
+        if st.session_state.role == "admin":
+            upload_book_ui()
+        else:
+            st.warning("Only admin can upload books.")
+    elif option == "📊 Analytics":
+        st.subheader("Analytics Overview")
+        total_books = db["books"].count_documents({})
+        total_downloads = sum(b.get("downloads", 0) for b in db["books"].find())
+        total_bookmarks = get_total_bookmarks()
+        st.metric("Total Books", total_books)
+        st.metric("Total Downloads", total_downloads)
+        st.metric("Total Bookmarks", total_bookmarks)
+    elif option == "📈 Popular Stats":
         show_book_stats()
-
-    elif choice == "📥 Logs" and role == "admin":
+    elif option == "📥 Logs":
         show_download_logs()
-
-    elif choice == "⭐ Bookmark Analytics" and role == "admin":
+    elif option == "⭐ Bookmark Analytics":
         show_bookmark_analytics()
-
-    elif choice == "👥 User Management" and role == "admin":
-        show_user_management()
-
-    elif choice == "🚪 Logout":
-        st.session_state.logged_in = False
-        st.session_state.username = None
-        st.session_state.role = None
-        st.success("Logged out successfully.")
-        st.rerun()
-
-    else:
-        st.warning("You do not have access to this section.")
+else:
+    search_and_display_books()
