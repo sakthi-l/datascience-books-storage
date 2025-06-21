@@ -1,4 +1,3 @@
-# ---------------- app.py ----------------
 import streamlit as st
 from auth import register_user, login_user, create_admin_if_not_exists
 from upload import (
