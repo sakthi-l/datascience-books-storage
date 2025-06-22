@@ -1,4 +1,8 @@
 streamlit
 pymongo
 bcrypt
+email-validator
 pandas
+python-dotenv
+plotly
+PyMuPDF
