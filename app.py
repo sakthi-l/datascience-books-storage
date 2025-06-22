@@ -2,16 +2,20 @@ import streamlit as st
 from pymongo import MongoClient
 import base64
 
+# ✅ Load credentials correctly based on your Streamlit Cloud secrets
+db_username = st.secrets["mongodb"]["username"]
+db_password = st.secrets["mongodb"]["password"]
+db_cluster = st.secrets["mongodb"]["cluster"]
+db_name = st.secrets["mongodb"]["appname"]
 
-db_password = st.secrets["mongodb"]["db_password"]
-srv_link = f"mongodb+srv://DATASCIENCE-BOOKS:{db_password}@books.rvarfaj.mongodb.net/?retryWrites=true&w=majority&appName=BOOKS"
+# ✅ MongoDB connection string using secrets
+srv_link = f"mongodb+srv://{db_username}:{db_password}@{db_cluster}/?retryWrites=true&w=majority&appName={db_name}"
 client = MongoClient(srv_link)
 db = client["library"]
 collection = db["books"]
 
 def show_pdf(file_base64, file_name):
-    b64 = file_base64
-    pdf_display = f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="600px"></iframe>'
+    pdf_display = f'<iframe src="data:application/pdf;base64,{file_base64}" width="100%" height="600px"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
 
 def upload_book():
@@ -42,7 +46,7 @@ def upload_book():
             "file_base64": file_b64,
             "file_name": uploaded_file.name
         }
-        st.write("🔍 Saving to MongoDB:", book_data)  # debug print
+        st.write("🔍 Saving to MongoDB:", book_data)  # Optional debug
         collection.insert_one(book_data)
         st.success(f"✅ '{title}' uploaded!")
 
@@ -63,23 +67,22 @@ def search_and_display_books():
     if language: query["language"] = {"$regex": language, "$options": "i"}
     if published_year: query["published_year"] = {"$regex": published_year, "$options": "i"}
 
-    st.write("🔍 Running query:", query)  # debug print
+    st.write("🔍 Running query:", query)  # Optional debug
     books = list(collection.find(query))
 
     if books:
         for book in books:
             with st.expander(book["title"]):
-                st.write(f"**Author:** {book.get('author','-')}")
-                st.write(f"**Course:** {book.get('course','-')}")
-                st.write(f"**ISBN:** {book.get('isbn','-')}")
-                st.write(f"**Language:** {book.get('language','-')}")
-                st.write(f"**Year:** {book.get('published_year','-')}")
+                st.write(f"**Author:** {book.get('author', '-')}")
+                st.write(f"**Course:** {book.get('course', '-')}")
+                st.write(f"**ISBN:** {book.get('isbn', '-')}")
+                st.write(f"**Language:** {book.get('language', '-')}")
+                st.write(f"**Year:** {book.get('published_year', '-')}")
                 if st.button(f"📥 Download {book['file_name']}", key=str(book['_id'])):
                     href = f'<a href="data:application/pdf;base64,{book["file_base64"]}" download="{book["file_name"]}">Download PDF</a>'
                     st.markdown(href, unsafe_allow_html=True)
     else:
         st.info("No matching books found.")
-
 
 def main():
     st.set_page_config("📚 Data Science Book Library")
