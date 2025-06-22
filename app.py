@@ -95,13 +95,11 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("🛡️ Logged in as Admin")
-            st.experimental_rerun()
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
                 st.success(f"✅ Welcome {username}")
-                st.experimental_rerun()
             else:
                 st.error("❌ Invalid or unverified credentials!")
 
@@ -149,12 +147,13 @@ def upload_book():
 def search_books():
     st.subheader("🔍 Search Books")
     query = {}
-    title = st.text_input("Title")
-    if title: query["title"] = {"$regex": title, "$options": "i"}
+    title = st.text_input("Search by title (partial or full match)", key="search_title")
+    if title:
+        query["title"] = {"$regex": title, "$options": "i"}
 
     total = books_col.count_documents(query)
     per_page = 5
-    pages = (total // per_page) + (1 if total % per_page > 0 else 0)
+    pages = max((total // per_page) + (1 if total % per_page > 0 else 0), 1)
     page = st.number_input("Page", 1, pages, step=1)
     skip = (page - 1) * per_page
 
@@ -207,6 +206,8 @@ def main():
             login_user()
         else:
             register_user()
+        if "user" in st.session_state:
+            st.experimental_rerun()
         return
 
     user = st.session_state["user"]
