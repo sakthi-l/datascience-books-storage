@@ -1,7 +1,8 @@
 streamlit
 pymongo
 bcrypt
-pandas
-email-validator
+python-dotenv
 PyMuPDF
 plotly
+pandas
+email-validator
