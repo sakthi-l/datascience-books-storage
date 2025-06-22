@@ -207,7 +207,7 @@ def main():
         else:
             register_user()
         if "user" in st.session_state:
-            st.experimental_rerun()
+            st.rerun()
         return
 
     user = st.session_state["user"]
@@ -223,7 +223,7 @@ def main():
 
     if st.button("Logout"):
         st.session_state.clear()
-        st.experimental_rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     main()
