@@ -37,7 +37,7 @@ fav_col = db["favorites"]
 
 # --- Theme Toggle ---
 def set_theme():
-    theme = st.radio("Select Theme", ["Light", "Dark"], horizontal=True)
+    theme = st.radio("Select Theme", ["Light", "Dark"], horizontal=True, key="theme_toggle")
     if theme == "Dark":
         st.markdown("""
             <style>
@@ -67,13 +67,13 @@ def register_user():
     password = st.text_input("Choose a password", type="password", key="reg_password")
     email = st.text_input("Enter your email (required for verification)", key="reg_email")
 
-    if st.button("Register"):
+    if st.button("Register", key="reg_button"):
         if users_col.find_one({"username": username}):
             st.error("❌ Username already exists!")
         else:
             otp = str(random.randint(100000, 999999))
             send_email(email, "Verify your Email", f"Your verification code is: {otp}")
-            entered = st.text_input("Enter the OTP sent to your email")
+            entered = st.text_input("Enter the OTP sent to your email", key="otp_input")
             if entered == otp:
                 hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
                 users_col.insert_one({
@@ -92,7 +92,7 @@ def login_user():
     st.subheader("🔐 Login")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
-    if st.button("Login"):
+    if st.button("Login", key="login_button"):
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("🛡️ Logged in as Admin")
@@ -107,16 +107,16 @@ def login_user():
 # --- Upload Book with Email Notifications ---
 def upload_book():
     st.subheader("📤 Upload Book (Admin Only)")
-    uploaded_file = st.file_uploader("Upload PDF", type="pdf")
-    title = st.text_input("Title")
-    author = st.text_input("Author")
-    keywords = st.text_input("Keywords (comma separated)")
-    domain = st.text_input("Domain")
-    isbn = st.text_input("ISBN")
-    language = st.text_input("Language")
-    year = st.text_input("Published Year")
+    uploaded_file = st.file_uploader("Upload PDF", type="pdf", key="pdf_uploader")
+    title = st.text_input("Title", key="upload_title")
+    author = st.text_input("Author", key="upload_author")
+    keywords = st.text_input("Keywords (comma separated)", key="upload_keywords")
+    domain = st.text_input("Domain", key="upload_domain")
+    isbn = st.text_input("ISBN", key="upload_isbn")
+    language = st.text_input("Language", key="upload_language")
+    year = st.text_input("Published Year", key="upload_year")
 
-    if uploaded_file and st.button("Upload"):
+    if uploaded_file and st.button("Upload", key="upload_button"):
         data = uploaded_file.read()
         preview = ""
         try:
@@ -151,14 +151,14 @@ def search_books():
     query = {}
     col1, col2 = st.columns(2)
     with col1:
-        title = st.text_input("Title")
-        author = st.text_input("Author")
-        keywords = st.text_input("Keywords")
-        domain = st.text_input("Domain")
+        title = st.text_input("Title", key="search_title")
+        author = st.text_input("Author", key="search_author")
+        keywords = st.text_input("Keywords", key="search_keywords")
+        domain = st.text_input("Domain", key="search_domain")
     with col2:
-        isbn = st.text_input("ISBN")
-        language = st.text_input("Language")
-        year = st.text_input("Published Year")
+        isbn = st.text_input("ISBN", key="search_isbn")
+        language = st.text_input("Language", key="search_language")
+        year = st.text_input("Published Year", key="search_year")
 
     if title:
         query["title"] = {"$regex": title, "$options": "i"}
@@ -189,16 +189,16 @@ def search_books():
             st.write(f"Language: {book.get('language')}")
             st.write(f"Year: {book.get('published_year')}")
             if preview := book.get("preview"):
-                st.text_area("📖 Preview", preview[:1000], height=150)
+                st.text_area("📖 Preview", preview[:1000], height=150, key=f"preview_{book['_id']}")
 
             user = st.session_state.get("user")
             if user and user != "admin":
                 fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
-                if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=str(book['_id'])):
+                if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
                     if not fav:
                         fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
                         st.success("Bookmarked!")
-                if st.button(f"📥 Download {book['file_name']}", key=f"dl{book['_id']}"):
+                if st.button(f"📥 Download {book['file_name']}", key=f"dl_{book['_id']}"):
                     logs_col.insert_one({"type": "download", "user": user, "book": book['title'], "timestamp": datetime.utcnow()})
                     href = f'<a href="data:application/pdf;base64,{book["file_base64"]}" download="{book["file_name"]}">Download PDF</a>'
                     st.markdown(href, unsafe_allow_html=True)
@@ -236,7 +236,7 @@ def manage_users():
             fav_col.delete_many({"user": selected_user})
             logs_col.delete_many({"user": selected_user})
             st.success(f"User '{selected_user}' deleted.")
-            st.rerun()
+            st.experimental_rerun()
     else:
         st.info("No registered users found.")
 
@@ -249,13 +249,13 @@ def main():
     st.markdown("---")
 
     if "user" not in st.session_state:
-        choice = st.radio("Choose:", ["Login", "Register"])
+        choice = st.radio("Choose:", ["Login", "Register"], key="auth_radio")
         if choice == "Login":
             login_user()
         else:
             register_user()
         if "user" in st.session_state:
-            st.rerun()
+            st.experimental_rerun()
         return
 
     user = st.session_state["user"]
@@ -270,7 +270,7 @@ def main():
 
     if st.button("Logout"):
         st.session_state.clear()
-        st.rerun()
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
