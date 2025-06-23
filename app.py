@@ -281,7 +281,6 @@ def search_books():
                     st.error(f"Could not retrieve file from storage: {e}")
             else:
                 st.warning("Guests can download only 1 book per day. Please log in.")
-
 def manage_users():
     st.subheader("👥 Manage Users")
     search_query = st.text_input("Search by username", key="search_user")
