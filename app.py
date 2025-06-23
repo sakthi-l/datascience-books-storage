@@ -116,6 +116,8 @@ def upload_book():
         st.success("✅ Book uploaded")
 
 # --- Search Books ---
+import streamlit.components.v1 as components  # Add at the top of your script if not already
+
 def search_books():
     st.markdown('<h3 style="font-size:24px;">🔎 Advanced Search</h3>', unsafe_allow_html=True)
     query = {}
@@ -152,15 +154,25 @@ def search_books():
 
     for book in books:
         with st.expander(book["title"]):
-            st.write(f"Author: {book.get('author')}")
-            st.write(f"Keywords: {', '.join(book.get('keywords', []))}")
-            st.write(f"Domain: {book.get('domain')}")
-            st.write(f"ISBN: {book.get('isbn')}")
-            st.write(f"Language: {book.get('language')}")
-            st.write(f"Year: {book.get('published_year')}")
-            if preview := book.get("preview"):
-                st.text_area("📖 Preview", preview[:1000], height=150, key=f"preview_{book['_id']}")
+            st.write(f"**Author:** {book.get('author')}")
+            st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
+            st.write(f"**Domain:** {book.get('domain')}")
+            st.write(f"**ISBN:** {book.get('isbn')}")
+            st.write(f"**Language:** {book.get('language')}")
+            st.write(f"**Year:** {book.get('published_year')}")
 
+            # Show full text preview (not truncated)
+            if preview := book.get("preview"):
+                st.text_area("📖 Preview (First Page Text)", preview, height=200, key=f"preview_{book['_id']}")
+
+            # Show embedded PDF viewer
+            st.markdown("📄 **View Full PDF** (Preview Only)")
+            components.html(f"""
+                <iframe src="data:application/pdf;base64,{book['file_base64']}"
+                        width="100%" height="600px" type="application/pdf"></iframe>
+            """, height=600)
+
+            # Allow login-only actions
             user = st.session_state.get("user")
             if user and user != "admin":
                 fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
