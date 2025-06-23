@@ -6,6 +6,7 @@ from datetime import datetime, time
 import pandas as pd
 import plotly.express as px
 from bson import ObjectId
+import socket
 
 # --- MongoDB Setup (use your own secrets or credentials) ---
 db_username = st.secrets["mongodb"]["username"]
@@ -21,6 +22,14 @@ books_col = db["books"]
 users_col = db["users"]
 logs_col = db["logs"]
 fav_col = db["favorites"]
+
+# --- Helper to get user IP ---
+def get_ip():
+    try:
+        hostname = socket.gethostname()
+        return socket.gethostbyname(hostname)
+    except:
+        return "unknown"
 
 # --- Registration ---
 def register_user():
@@ -99,9 +108,11 @@ def search_books():
         query["language"] = language_filter
 
     books = books_col.find(query)
+    ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
     guest_downloads_today = logs_col.count_documents({
         "user": "guest",
+        "ip": ip,
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
@@ -125,25 +136,30 @@ def search_books():
                 else:
                     st.warning("Login to bookmark books")
 
-            download_key = f"download_{book['_id']}"
-            if can_download:
-                if st.download_button(
-                    label="📂 Download This Book",
-                    data=base64.b64decode(book["file_base64"]),
-                    file_name=book["file_name"],
-                    mime="application/pdf",
-                    key=download_key
-                ):
+            trigger_key = f"btn_{book['_id']}"
+            download_key = f"download_{book['_id']}_{book['file_name']}"
+
+            if st.button("⬇️ Click to Download", key=trigger_key):
+                if can_download:
+                    st.download_button(
+                        label="📄 Confirm Download",
+                        data=base64.b64decode(book["file_base64"]),
+                        file_name=book["file_name"],
+                        mime="application/pdf",
+                        key=download_key
+                    )
                     logs_col.insert_one({
                         "type": "download",
                         "user": user if user else "guest",
+                        "ip": ip,
                         "book": book["title"],
                         "author": book.get("author"),
                         "language": book.get("language"),
                         "timestamp": datetime.utcnow()
                     })
-            else:
-                st.warning("Guests can download only 1 book per day. Please log in for unlimited access.")
+                else:
+                    st.warning("Guests can download only 1 book per day per IP. Please log in for unlimited access.")
+
 
 
 # --- Admin Analytics ---
