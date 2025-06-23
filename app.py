@@ -99,12 +99,16 @@ def search_books():
         query["language"] = language_filter
 
     books = books_col.find(query)
-    today = datetime.utcnow().date()
+    from datetime import time
+
+    today_start = datetime.combine(datetime.utcnow().date(), time.min)
+
     guest_downloads_today = logs_col.count_documents({
-        "user": "guest",
-        "type": "download",
-        "timestamp": {"$gte": datetime(today.year, today.month, today.day)}
-    })
+    "user": "guest",
+    "type": "download",
+    "timestamp": {"$gte": today_start}
+})
+
 
     for book in books:
         with st.expander(book["title"]):
