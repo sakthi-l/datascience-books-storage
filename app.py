@@ -1,15 +1,12 @@
-# ✅ Full Integration: Data Science Book Library with Admin User Management (No Password Reset)
+# ✅ Full Integration: Data Science Book Library with Admin User Management (No Email Verification)
 
 import streamlit as st
 import base64
 import bcrypt
 import urllib.parse
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
-import smtplib
-from email.message import EmailMessage
-import random
 import fitz  # PyMuPDF for PDF previews
 import plotly.express as px
 from bson import ObjectId
@@ -22,17 +19,11 @@ db_name = st.secrets["mongodb"]["appname"]
 admin_user = st.secrets["mongodb"]["admin_user"]
 admin_pass = st.secrets["mongodb"]["admin_pass"]
 
-SMTP_EMAIL = st.secrets["smtp"]["email"]
-SMTP_PASSWORD = st.secrets["smtp"]["password"]
-SMTP_SERVER = st.secrets["smtp"]["server"]
-SMTP_PORT = st.secrets["smtp"]["port"]
-
 client = MongoClient(f"mongodb+srv://{db_username}:{db_password}@{db_cluster}/?retryWrites=true&w=majority&appName={db_name}")
 db = client["library"]
 books_col = db["books"]
 users_col = db["users"]
 logs_col = db["logs"]
-otp_col = db["otp_collection"]
 fav_col = db["favorites"]
 
 # --- Theme Toggle ---
@@ -48,44 +39,24 @@ def set_theme():
             </style>
         """, unsafe_allow_html=True)
 
-# --- Email Utility ---
-def send_email(to, subject, content):
-    msg = EmailMessage()
-    msg.set_content(content)
-    msg["Subject"] = subject
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = to
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.send_message(msg)
-
-# --- Registration with Email Verification ---
+# --- Registration Without Email Verification ---
 def register_user():
     st.subheader("📝 Register")
     username = st.text_input("Choose a username", key="reg_username")
     password = st.text_input("Choose a password", type="password", key="reg_password")
-    email = st.text_input("Enter your email (required for verification)", key="reg_email")
 
     if st.button("Register", key="reg_button"):
         if users_col.find_one({"username": username}):
             st.error("❌ Username already exists!")
         else:
-            otp = str(random.randint(100000, 999999))
-            send_email(email, "Verify your Email", f"Your verification code is: {otp}")
-            entered = st.text_input("Enter the OTP sent to your email", key="otp_input")
-            if entered == otp:
-                hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-                users_col.insert_one({
-                    "username": username,
-                    "password": hashed_pw,
-                    "email": email,
-                    "verified": True,
-                    "created_at": datetime.utcnow()
-                })
-                st.success("✅ Registered and Verified! You can now log in.")
-            else:
-                st.warning("⚠️ Incorrect OTP")
+            hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+            users_col.insert_one({
+                "username": username,
+                "password": hashed_pw,
+                "verified": True,
+                "created_at": datetime.utcnow()
+            })
+            st.success("✅ Registered successfully! You can now log in.")
 
 # --- Login ---
 def login_user():
@@ -104,9 +75,9 @@ def login_user():
             else:
                 st.error("❌ Invalid or unverified credentials!")
 
-# --- Upload Book with Email Notifications ---
+# --- Upload Book ---
 def upload_book():
-    st.subheader("📤 Upload Book (Admin Only)")
+    st.subheader("📄 Upload Book (Admin Only)")
     uploaded_file = st.file_uploader("Upload PDF", type="pdf", key="pdf_uploader")
     title = st.text_input("Title", key="upload_title")
     author = st.text_input("Author", key="upload_author")
@@ -138,14 +109,9 @@ def upload_book():
             "preview": preview
         }
         books_col.insert_one(book)
+        st.success("✅ Book uploaded")
 
-        for user in users_col.find({"verified": True}):
-            try:
-                send_email(user["email"], "New Book Uploaded", f"A new book '{title}' has been added to the library.")
-            except: continue
-        st.success("✅ Book uploaded and notifications sent")
-
-# --- Search and Access Logic ---
+# --- Search Books ---
 def search_books():
     st.subheader("🔎 Advanced Search")
     query = {}
@@ -198,7 +164,7 @@ def search_books():
                     if not fav:
                         fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
                         st.success("Bookmarked!")
-                if st.button(f"📥 Download {book['file_name']}", key=f"dl_{book['_id']}"):
+                if st.button(f"📅 Download {book['file_name']}", key=f"dl_{book['_id']}"):
                     logs_col.insert_one({"type": "download", "user": user, "book": book['title'], "timestamp": datetime.utcnow()})
                     href = f'<a href="data:application/pdf;base64,{book["file_base64"]}" download="{book["file_name"]}">Download PDF</a>'
                     st.markdown(href, unsafe_allow_html=True)
@@ -223,7 +189,7 @@ def show_analytics():
 # --- Admin: Manage Users ---
 def manage_users():
     st.subheader("👥 Manage Users")
-    users = list(users_col.find({}, {"_id": 0, "username": 1, "email": 1, "created_at": 1}))
+    users = list(users_col.find({}, {"_id": 0, "username": 1, "created_at": 1}))
     if users:
         df = pd.DataFrame(users)
         st.dataframe(df)
