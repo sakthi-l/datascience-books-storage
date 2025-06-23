@@ -126,18 +126,23 @@ def search_books():
                     st.warning("Login to bookmark books")
 
             if can_download:
-                st.download_button("⬇️ Download", base64.b64decode(book["file_base64"]),
-                                   file_name=book["file_name"], mime="application/pdf")
-                logs_col.insert_one({
-                    "type": "download",
-                    "user": user if user else "guest",
-                    "book": book["title"],
-                    "author": book.get("author"),
-                    "language": book.get("language"),
-                    "timestamp": datetime.utcnow()
-                })
+                if st.button("📂 Download This Book", key=f"download_btn_{book['_id']}"):
+                    st.download_button(
+                        "📂 Click to Download", base64.b64decode(book["file_base64"]),
+                        file_name=book["file_name"], mime="application/pdf", key=f"file_{book['_id']}"
+                    )
+
+                    logs_col.insert_one({
+                        "type": "download",
+                        "user": user if user else "guest",
+                        "book": book["title"],
+                        "author": book.get("author"),
+                        "language": book.get("language"),
+                        "timestamp": datetime.utcnow()
+                    })
             else:
                 st.warning("Guests can download only 1 book per day. Please log in for unlimited access.")
+
 
 # --- Admin Analytics ---
 def show_analytics():
