@@ -199,7 +199,7 @@ def search_books():
                 for key in ["search_title", "search_author", "search_language", "search_course"]:
                     if key in st.session_state:
                         del st.session_state[key]
-                st.experimental_rerun()
+                st.rerun()
 
     # Build query
     query = {}
