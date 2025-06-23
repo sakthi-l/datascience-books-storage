@@ -126,30 +126,26 @@ def search_books():
                     st.warning("Login to bookmark books")
 
             if can_download:
-    st.download_button(
-        label="📂 Download This Book",
-        data=base64.b64decode(book["file_base64"]),
-        file_name=book["file_name"],
-        mime="application/pdf",
-        key=f"download_{book['_id']}"
-    )
+                st.download_button(
+                    label="📂 Download This Book",
+                    data=base64.b64decode(book["file_base64"]),
+                    file_name=book["file_name"],
+                    mime="application/pdf",
+                    key=f"download_{book['_id']}"
+                )
 
-    # Log the download action once per session (optional)
-    if f"logged_{book['_id']}" not in st.session_state:
-        logs_col.insert_one({
-            "type": "download",
-            "user": user if user else "guest",
-            "book": book["title"],
-            "author": book.get("author"),
-            "language": book.get("language"),
-            "timestamp": datetime.utcnow()
-        })
-        st.session_state[f"logged_{book['_id']}"] = True
-
+                if f"logged_{book['_id']}" not in st.session_state:
+                    logs_col.insert_one({
+                        "type": "download",
+                        "user": user if user else "guest",
+                        "book": book["title"],
+                        "author": book.get("author"),
+                        "language": book.get("language"),
+                        "timestamp": datetime.utcnow()
+                    })
+                    st.session_state[f"logged_{book['_id']}"] = True
             else:
                 st.warning("Guests can download only 1 book per day. Please log in for unlimited access.")
-
-
 # --- Admin Analytics ---
 def show_analytics():
     st.subheader("📊 Analytics")
