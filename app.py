@@ -114,9 +114,22 @@ def upload_book():
         }
         books_col.insert_one(book)
         st.success("✅ Book uploaded")
+from PIL import Image
+import io
+
+def show_pdf_page_as_image(encoded_base64, title):
+    try:
+        pdf_data = base64.b64decode(encoded_base64)
+        doc = fitz.open(stream=pdf_data, filetype="pdf")
+        page = doc.load_page(0)
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # High-res
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        st.image(img, caption=f"📖 {title} – First Page Preview", use_column_width=True)
+    except Exception as e:
+        st.error("❌ Failed to render PDF preview.")
 
 # --- Search Books ---
-import streamlit.components.v1 as components  # Add at the top of your script if not already
+import streamlit.components.v1 as components
 
 def search_books():
     st.subheader("🔎 Advanced Search")
