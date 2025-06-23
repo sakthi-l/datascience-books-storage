@@ -119,7 +119,7 @@ def upload_book():
 import streamlit.components.v1 as components  # Add at the top of your script if not already
 
 def search_books():
-    st.markdown('<h3 style="font-size:24px;">🔎 Advanced Search</h3>', unsafe_allow_html=True)
+    st.subheader("🔎 Advanced Search")
     query = {}
     col1, col2 = st.columns(2)
     with col1:
@@ -161,31 +161,30 @@ def search_books():
             st.write(f"**Language:** {book.get('language')}")
             st.write(f"**Year:** {book.get('published_year')}")
 
-            # Show full text preview (not truncated)
-            if preview := book.get("preview"):
-                st.text_area("📖 Preview (First Page Text)", preview, height=200, key=f"preview_{book['_id']}")
+            # 👁️ Show first page image preview
+            show_pdf_page_as_image(book["file_base64"], book["title"])
 
-            # Show embedded PDF viewer
-            st.markdown("📄 **View Full PDF** (Preview Only)")
-            components.html(f"""
-                <iframe src="data:application/pdf;base64,{book['file_base64']}"
-                        width="100%" height="600px" type="application/pdf"></iframe>
-            """, height=600)
+            # 📖 View full PDF (visible to all)
+            if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
+                pdf_link = f'<iframe src="data:application/pdf;base64,{book["file_base64"]}" width="100%" height="700px"></iframe>'
+                st.markdown(pdf_link, unsafe_allow_html=True)
 
-            # Allow login-only actions
+            # 🔒 Download only for logged-in users
             user = st.session_state.get("user")
             if user and user != "admin":
+                st.download_button(
+                    label="📄 Download this Book",
+                    data=base64.b64decode(book["file_base64"]),
+                    file_name=book["file_name"],
+                    mime="application/pdf"
+                )
                 fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
                 if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
                     if not fav:
                         fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
                         st.success("Bookmarked!")
-                if st.button(f"📅 Download {book['file_name']}", key=f"dl_{book['_id']}"):
-                    logs_col.insert_one({"type": "download", "user": user, "book": book['title'], "timestamp": datetime.utcnow()})
-                    href = f'<a href="data:application/pdf;base64,{book["file_base64"]}" download="{book["file_name"]}">Download PDF</a>'
-                    st.markdown(href, unsafe_allow_html=True)
             elif user == "admin":
-                st.info("Admin access granted. Download/Bookmark not shown.")
+                st.info("Admin access granted. Download/bookmark not shown.")
             else:
                 st.warning("🔐 Please log in to download or bookmark this book.")
 
