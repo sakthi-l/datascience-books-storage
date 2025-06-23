@@ -283,6 +283,7 @@ def search_books():
                 st.warning("Guests can download only 1 book per day. Please log in.")
 def manage_users():
     st.subheader("👥 Manage Users")
+
     search_query = st.text_input("Search by username", key="search_user")
     query = {"username": {"$regex": search_query, "$options": "i"}} if search_query else {}
     users = list(users_col.find(query))
@@ -292,39 +293,30 @@ def manage_users():
         return
 
     for user in users:
-        if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
-            confirm = st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}")
-        if confirm:
-            users_col.delete_one({"_id": user["_id"]})
-            logs_col.delete_many({"user": user["username"]})
-            fav_col.delete_many({"user": user["username"]})
-            st.warning("User deleted")
-            st.rerun()
-  # prevent modifying/deleting admin
-
         with st.expander(f"👤 {user['username']}"):
             st.write(f"✅ Verified: {'Yes' if user.get('verified') else 'No'}")
             st.write(f"🕒 Joined: {user.get('created_at', 'N/A')}")
-            logs = list(logs_col.find({"user": user["username"]}).sort("timestamp", -1))
-            favs = list(fav_col.find({"user": user["username"]}))
 
-            if logs:
-                st.write("📥 Downloads:")
-                for l in logs[:5]:
-                    st.write(f"- {l['book']} on {l['timestamp'].strftime('%Y-%m-%d')}")
-
-            if favs:
-                st.write("⭐ Favorites:")
-                for f in favs:
-                    book = books_col.find_one({"_id": ObjectId(f["book_id"])})
-                    if book:
-                        st.write(f"- {book['title']}")
-
-            # User stats
+            # Stats
             dl_count = logs_col.count_documents({"user": user["username"], "type": "download"})
             fav_count = fav_col.count_documents({"user": user["username"]})
             st.write(f"📥 Downloads: {dl_count}")
             st.write(f"⭐ Bookmarks: {fav_count}")
+
+            logs = list(logs_col.find({"user": user["username"]}).sort("timestamp", -1))
+            favs = list(fav_col.find({"user": user["username"]}))
+
+            if logs:
+                st.write("📄 Recent Downloads:")
+                for l in logs[:5]:
+                    st.write(f"- {l['book']} on {l['timestamp'].strftime('%Y-%m-%d')}")
+
+            if favs:
+                st.write("⭐ Bookmarked Books:")
+                for f in favs:
+                    book = books_col.find_one({"_id": ObjectId(f["book_id"])})
+                    if book:
+                        st.write(f"- {book['title']}")
 
             col1, col2 = st.columns(2)
 
@@ -339,14 +331,15 @@ def manage_users():
 
             with col2:
                 if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
-                    confirm = st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}")
-                    if confirm:
-                        users_col.delete_one({"_id": user["_id"]})
-                        logs_col.delete_many({"user": user["username"]})
-                        fav_col.delete_many({"user": user["username"]})
-                        st.warning("User deleted")
-                        st.rerun()
-
+                    if user["username"] == st.session_state["user"]:
+                        st.error("You cannot delete your own account while logged in.")
+                    else:
+                        if st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}"):
+                            users_col.delete_one({"_id": user["_id"]})
+                            logs_col.delete_many({"user": user["username"]})
+                            fav_col.delete_many({"user": user["username"]})
+                            st.warning("User deleted")
+                            st.rerun()
 
 
 def bulk_upload_with_gridfs():
