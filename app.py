@@ -271,7 +271,8 @@ def main():
             login_user()
         else:
             register_user()
-        return
+        st.stop()  # ✅ allows page to rerun after login, instead of return
+
 
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
