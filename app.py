@@ -58,13 +58,15 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("Logged in as Admin")
+            st.experimental_rerun()  # ✅ forces UI refresh
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
                 st.success(f"Welcome {username}")
+                st.experimental_rerun()  # ✅ refresh for user access
             else:
-                st.error("Invalid or unverified credentials")
+                st.error("Invalid login credentials")
 
 # --- Upload Book (Admin Only) ---
 def upload_book():
@@ -271,8 +273,7 @@ def main():
             login_user()
         else:
             register_user()
-        st.stop()  # ✅ allows page to rerun after login, instead of return
-
+        st.stop()  # ✅ allows proper re-entry after login
 
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
@@ -280,18 +281,21 @@ def main():
     if user == "admin":
         st.sidebar.markdown("## 🔐 Admin Controls")
         admin_tab = st.sidebar.radio("🛠️ Admin Panel", ["📤 Upload Book", "📊 Analytics", "👥 Manage Users"])
+
         if admin_tab == "📤 Upload Book":
             upload_book()
         elif admin_tab == "📊 Analytics":
             admin_dashboard()
         elif admin_tab == "👥 Manage Users":
             st.subheader("👥 Manage Users (Coming Soon)")
+            st.info("This section will allow you to view and manage registered users.")
     else:
         user_dashboard(user)
 
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
+
 
 if __name__ == "__main__":
     main()
