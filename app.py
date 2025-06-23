@@ -58,15 +58,15 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("Logged in as Admin")
-            st.experimental_rerun()  # ✅ forces UI refresh
+            st.rerun()  # ✅ use st.rerun for Streamlit ≥1.27
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
                 st.success(f"Welcome {username}")
-                st.experimental_rerun()  # ✅ refresh for user access
+                st.rerun()
             else:
-                st.error("Invalid login credentials")
+                st.error("Invalid or unverified credentials")
 
 # --- Upload Book (Admin Only) ---
 def upload_book():
