@@ -149,61 +149,34 @@ def search_books():
 # --- Admin Analytics ---
 def show_analytics():
     st.subheader("📊 Analytics")
-    data = list(logs_col.find({}, {"_id": 0}))
-    if data:
-        df = pd.DataFrame(data)
+    total_views = logs_col.count_documents({"type": "view"})
+    total_downloads = logs_col.count_documents({"type": "download"})
+
+    st.metric("Total Views", total_views)
+    st.metric("Total Downloads", total_downloads)
+
+    logs = list(logs_col.find())
+    if logs:
+        df = pd.DataFrame(logs)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-        st.metric("Total Views", df[df["type"] == "view"].shape[0])
-        st.metric("Total Downloads", df[df["type"] == "download"].shape[0])
+        authors = ["All"] + sorted(df["author"].dropna().unique())
+        selected_author = st.selectbox("Filter by Author", authors, key="analytics_author")
 
-        fig = px.histogram(df, x="timestamp", color="type", barmode="group",
-                           title="User Activity Over Time")
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("📚 Most Viewed/Downloaded Books")
-        top_books = df.groupby("book")["type"].value_counts().unstack().fillna(0)
-        top_books["Total"] = top_books.sum(axis=1)
-        top_books = top_books.sort_values("Total", ascending=False).reset_index()
-        st.dataframe(top_books)
-
-        st.subheader("⭐ Most Bookmarked Books")
-        favs = list(fav_col.aggregate([
-            {"$group": {"_id": "$book_id", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 10}
-        ]))
-        for fav in favs:
-            book = books_col.find_one({"_id": ObjectId(fav["_id"])})
-            if book:
-                st.write(f"📘 {book['title']} ({fav['count']} bookmarks)")
-
-        st.subheader("🔍 Filter Logs")
-        selected_author = st.selectbox("Filter by Author", ["All"] + sorted(df["author"].dropna().unique()))
-        selected_language = st.selectbox("Filter by Language", ["All"] + sorted(df["language"].dropna().unique()))
+        languages = ["All"] + sorted(df["language"].dropna().unique())
+        selected_language = st.selectbox("Filter by Language", languages, key="analytics_language")
 
         if selected_author != "All":
             df = df[df["author"] == selected_author]
         if selected_language != "All":
             df = df[df["language"] == selected_language]
 
-        st.dataframe(df)
+        st.dataframe(df[["user", "book", "author", "language", "type", "timestamp"]])
 
-        if st.button("⬇️ Export Bookmarks to CSV"):
-            bookmarks = list(fav_col.find({}, {"_id": 0}))
-            st.download_button("Download CSV", pd.DataFrame(bookmarks).to_csv(index=False),
-                               file_name="bookmarks.csv", mime="text/csv")
-
-        if st.button("🗑️ Clear Logs"):
-            logs_col.delete_many({})
-            st.success("All logs cleared.")
-
-        if st.button("🗑️ Delete All Books"):
-            books_col.delete_many({})
-            fav_col.delete_many({})
-            st.success("All books and bookmarks deleted.")
+        fig = px.histogram(df, x="timestamp", color="type", title="User Activity Over Time")
+        st.plotly_chart(fig)
     else:
-        st.info("No user activity logged yet.")
+        st.info("No logs to display.")
 
 # --- User Dashboard ---
 def user_dashboard():
