@@ -199,7 +199,7 @@ def search_books():
                 for key in ["search_title", "search_author", "search_language", "search_course"]:
                     if key in st.session_state:
                         del st.session_state[key]
-                st.experimental_rerun()
+                st.rerun()
 
     # Build query based on filters
     query = {}
@@ -233,6 +233,14 @@ def search_books():
             st.write(f"**Author**: {book.get('author', 'N/A')}")
             st.write(f"**Language**: {book.get('language', 'N/A')}")
             st.write(f"**Course**: {book.get('course', 'Not tagged')}")
+                        # Admin delete option
+            if st.session_state.get("user") == "admin":
+                if st.button("🗑️ Delete Book", key=f"del_{book['_id']}"):
+                    books_col.delete_one({"_id": book["_id"]})
+                    fav_col.delete_many({"book_id": str(book["_id"])})
+                    logs_col.delete_many({"book": book["title"]})
+                    st.success(f"Deleted book: {book['title']}")
+                    st.rerun()
 
             user = st.session_state.get("user")
             can_download = user or guest_downloads_today < 1
