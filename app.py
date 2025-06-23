@@ -135,7 +135,7 @@ def search_books():
         mime="application/pdf",
         key=f"download_{book['_id']}"
     ):
-                logs_col.insert_one({
+                    logs_col.insert_one({
             "type": "download",
             "user": user if user else "guest",
             "book": book["title"],
