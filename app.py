@@ -40,6 +40,9 @@ def set_theme():
                 div[data-testid="stSidebar"] {
                     background-color: #161A23;
                 }
+                h1, h2, h3, h4, h5, h6, .css-10trblm, .css-1v3fvcr {
+                    color: white !important;
+                }
                 input, textarea, .stButton > button {
                     background-color: #2c2f38;
                     color: white;
@@ -61,6 +64,9 @@ def set_theme():
                 div[data-testid="stSidebar"] {
                     background-color: #F0F2F6;
                 }
+                h1, h2, h3, h4, h5, h6, .css-10trblm, .css-1v3fvcr {
+                    color: black !important;
+                }
                 input, textarea, .stButton > button {
                     background-color: white;
                     color: black;
@@ -72,7 +78,6 @@ def set_theme():
                 }
             </style>
         """, unsafe_allow_html=True)
-
 
 # --- Registration Without Email Verification ---
 def register_user():
