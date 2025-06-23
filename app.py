@@ -1,15 +1,13 @@
 import streamlit as st
 import base64
 import bcrypt
-import urllib.parse
 from pymongo import MongoClient
 from datetime import datetime
 import pandas as pd
-import fitz  # PyMuPDF for PDF previews
 import plotly.express as px
 from bson import ObjectId
 
-# --- Secrets and MongoDB Setup ---
+# --- MongoDB Setup (use your own secrets or credentials) ---
 db_username = st.secrets["mongodb"]["username"]
 db_password = st.secrets["mongodb"]["password"]
 db_cluster = st.secrets["mongodb"]["cluster"]
@@ -24,192 +22,219 @@ users_col = db["users"]
 logs_col = db["logs"]
 fav_col = db["favorites"]
 
-# --- Theme Toggle ---
-def set_theme():
-    theme = st.radio("Select Theme", ["Light", "Dark"], horizontal=True, key="theme_toggle")
-    if theme == "Dark":
-        st.markdown("""
-            <style>
-                .stApp { background-color: #0E1117; color: white; }
-                div[data-testid="stSidebar"] { background-color: #161A23; }
-                h1, h2, h3, h4, h5, h6 { color: white !important; }
-                input, textarea, .stButton > button { background-color: #2c2f38; color: white; border-color: #444; }
-                .stTextInput > div > div > input { background-color: #2c2f38; color: white; }
-            </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <style>
-                .stApp { background-color: white; color: black; }
-                div[data-testid="stSidebar"] { background-color: #F0F2F6; }
-                h1, h2, h3, h4, h5, h6 { color: black !important; }
-                input, textarea, .stButton > button { background-color: white; color: black; border-color: #ccc; }
-                .stTextInput > div > div > input { background-color: white; color: black; }
-            </style>
-        """, unsafe_allow_html=True)
-
-# --- Register ---
+# --- Registration ---
 def register_user():
     st.subheader("📝 Register")
-    username = st.text_input("Choose a username")
-    password = st.text_input("Choose a password", type="password")
+    username = st.text_input("Username", key="reg_username")
+    password = st.text_input("Password", type="password", key="reg_password")
     if st.button("Register"):
         if users_col.find_one({"username": username}):
-            st.error("❌ Username already exists!")
+            st.error("Username already exists")
         else:
             hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-            users_col.insert_one({"username": username, "password": hashed_pw, "verified": True, "created_at": datetime.utcnow()})
-            st.success("✅ Registered successfully! You can now log in.")
+            users_col.insert_one({
+                "username": username,
+                "password": hashed_pw,
+                "verified": True,
+                "created_at": datetime.utcnow()
+            })
+            st.success("Registered successfully")
 
 # --- Login ---
 def login_user():
     st.subheader("🔐 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
     if st.button("Login"):
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
-            st.success("🛡️ Logged in as Admin")
+            st.success("Logged in as Admin")
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
-                st.success(f"✅ Welcome {username}")
+                st.success(f"Welcome {username}")
             else:
-                st.error("❌ Invalid or unverified credentials!")
+                st.error("Invalid or unverified credentials")
 
-# --- Upload Book ---
+# --- Upload Book (Admin Only) ---
 def upload_book():
-    st.subheader("📄 Upload Book (Admin Only)")
+    st.subheader("📄 Upload Book")
     uploaded_file = st.file_uploader("Upload PDF", type="pdf")
+    if uploaded_file:
+        title = st.text_input("Title")
+        author = st.text_input("Author")
+        language = st.text_input("Language")
+
+        if st.button("Upload"):
+            data = uploaded_file.read()
+            if len(data) == 0:
+                st.error("File is empty")
+                return
+
+            encoded = base64.b64encode(data).decode("utf-8")
+            books_col.insert_one({
+                "title": title,
+                "author": author,
+                "language": language,
+                "file_name": uploaded_file.name,
+                "file_base64": encoded,
+                "uploaded_at": datetime.utcnow()
+            })
+            st.success("Book uploaded")
+
+# --- Search and View Books ---
+def search_books():
+    st.subheader("🔎 Search Books")
     title = st.text_input("Title")
     author = st.text_input("Author")
-    keywords = st.text_input("Keywords (comma separated)")
-    domain = st.text_input("Domain")
-    isbn = st.text_input("ISBN")
-    language = st.text_input("Language")
-    year = st.text_input("Published Year")
+    language_filter = st.selectbox("Filter by Language", ["All"] + sorted({b.get("language", "") for b in books_col.find()}))
 
-    if uploaded_file and st.button("Upload"):
-        data = uploaded_file.read()
-        encoded = base64.b64encode(data).decode()
-        book = {
-            "title": title,
-            "author": author,
-            "keywords": [k.strip() for k in keywords.split(",")],
-            "domain": domain,
-            "isbn": isbn,
-            "language": language,
-            "published_year": year,
-            "file_base64": encoded,
-            "file_name": uploaded_file.name,
-            "uploaded_at": datetime.utcnow()
-        }
-        books_col.insert_one(book)
-        st.success("✅ Book uploaded")
-
-# --- Search Books ---
-import streamlit.components.v1 as components
-import tempfile
-import base64
-
-import streamlit.components.v1 as components
-
-def search_books():
-    st.subheader("🔎 Advanced Search")
     query = {}
-    col1, col2 = st.columns(2)
-    with col1:
-        title = st.text_input("Title", key="search_title")
-        author = st.text_input("Author", key="search_author")
-        keywords = st.text_input("Keywords", key="search_keywords")
-        domain = st.text_input("Domain", key="search_domain")
-    with col2:
-        isbn = st.text_input("ISBN", key="search_isbn")
-        language = st.text_input("Language", key="search_language")
-        year = st.text_input("Published Year", key="search_year")
-
     if title:
         query["title"] = {"$regex": title, "$options": "i"}
     if author:
         query["author"] = {"$regex": author, "$options": "i"}
-    if keywords:
-        query["keywords"] = {"$in": [k.strip() for k in keywords.split(",")]}
-    if domain:
-        query["domain"] = {"$regex": domain, "$options": "i"}
-    if isbn:
-        query["isbn"] = {"$regex": isbn, "$options": "i"}
-    if language:
-        query["language"] = {"$regex": language, "$options": "i"}
-    if year:
-        query["published_year"] = year
+    if language_filter != "All":
+        query["language"] = language_filter
 
-    books = list(books_col.find(query))
-    if not books:
-        st.info("No books matched your query.")
-        return
+    books = books_col.find(query)
+    today = datetime.utcnow().date()
+    guest_downloads_today = logs_col.count_documents({
+        "user": "guest",
+        "type": "download",
+        "timestamp": {"$gte": datetime(today.year, today.month, today.day)}
+    })
 
     for book in books:
         with st.expander(book["title"]):
-            st.write(f"**Author:** {book.get('author')}")
-            st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
-            st.write(f"**Domain:** {book.get('domain')}")
-            st.write(f"**ISBN:** {book.get('isbn')}")
-            st.write(f"**Language:** {book.get('language')}")
-            st.write(f"**Year:** {book.get('published_year')}")
+            st.write(f"Author: {book.get('author')}")
+            st.write(f"Language: {book.get('language')}")
 
-            # 👁️ View full PDF (inline, works for all users)
-            if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
-                st.markdown(
-                    f'<iframe src="data:application/pdf;base64,{book["file_base64"]}" '
-                    f'width="100%" height="700px" style="border: none;"></iframe>',
-                    unsafe_allow_html=True
-                )
-
-            # 🔒 Allow download only for logged-in users
             user = st.session_state.get("user")
-            if user and user != "admin":
-                st.download_button(
-                    label="📄 Download this Book",
-                    data=base64.b64decode(book["file_base64"]),
-                    file_name=book["file_name"],
-                    mime="application/pdf"
-                )
+            can_download = user or guest_downloads_today < 1
 
-                fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
-                if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
-                    if not fav:
-                        fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
-                        st.success("Bookmarked!")
+            if st.button("⭐ Bookmark", key=f"fav_{book['_id']}"):
+                if user:
+                    fav_col.update_one(
+                        {"user": user, "book_id": str(book['_id'])},
+                        {"$set": {"timestamp": datetime.utcnow()}},
+                        upsert=True
+                    )
+                    st.success("Bookmarked")
+                else:
+                    st.warning("Login to bookmark books")
 
-            elif user == "admin":
-                st.info("Admin access granted. Download/bookmark not shown.")
+            if can_download:
+                st.download_button("⬇️ Download", base64.b64decode(book["file_base64"]),
+                                   file_name=book["file_name"], mime="application/pdf")
+                logs_col.insert_one({
+                    "type": "download",
+                    "user": user if user else "guest",
+                    "book": book["title"],
+                    "author": book.get("author"),
+                    "language": book.get("language"),
+                    "timestamp": datetime.utcnow()
+                })
             else:
-                st.warning("🔐 Please log in to download or bookmark this book.")
+                st.warning("Guests can download only 1 book per day. Please log in for unlimited access.")
 
-# --- Admin Dashboard ---
+# --- Admin Analytics ---
 def show_analytics():
-    st.subheader("📊 Admin Dashboard")
-    st.metric("Books", books_col.count_documents({}))
-    st.metric("Users", users_col.count_documents({}))
-    st.metric("Downloads", logs_col.count_documents({"type": "download"}))
+    st.subheader("📊 Analytics")
+    data = list(logs_col.find({}, {"_id": 0}))
+    if data:
+        df = pd.DataFrame(data)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-# --- Manage Users ---
-def manage_users():
-    st.subheader("👥 Manage Users")
-    users = list(users_col.find({}, {"_id": 0, "username": 1, "created_at": 1}))
-    if users:
-        df = pd.DataFrame(users)
+        st.metric("Total Views", df[df["type"] == "view"].shape[0])
+        st.metric("Total Downloads", df[df["type"] == "download"].shape[0])
+
+        fig = px.histogram(df, x="timestamp", color="type", barmode="group",
+                           title="User Activity Over Time")
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("📚 Most Viewed/Downloaded Books")
+        top_books = df.groupby("book")["type"].value_counts().unstack().fillna(0)
+        top_books["Total"] = top_books.sum(axis=1)
+        top_books = top_books.sort_values("Total", ascending=False).reset_index()
+        st.dataframe(top_books)
+
+        st.subheader("⭐ Most Bookmarked Books")
+        favs = list(fav_col.aggregate([
+            {"$group": {"_id": "$book_id", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]))
+        for fav in favs:
+            book = books_col.find_one({"_id": ObjectId(fav["_id"])})
+            if book:
+                st.write(f"📘 {book['title']} ({fav['count']} bookmarks)")
+
+        st.subheader("🔍 Filter Logs")
+        selected_author = st.selectbox("Filter by Author", ["All"] + sorted(df["author"].dropna().unique()))
+        selected_language = st.selectbox("Filter by Language", ["All"] + sorted(df["language"].dropna().unique()))
+
+        if selected_author != "All":
+            df = df[df["author"] == selected_author]
+        if selected_language != "All":
+            df = df[df["language"] == selected_language]
+
         st.dataframe(df)
+
+        if st.button("⬇️ Export Bookmarks to CSV"):
+            bookmarks = list(fav_col.find({}, {"_id": 0}))
+            st.download_button("Download CSV", pd.DataFrame(bookmarks).to_csv(index=False),
+                               file_name="bookmarks.csv", mime="text/csv")
+
+        if st.button("🗑️ Clear Logs"):
+            logs_col.delete_many({})
+            st.success("All logs cleared.")
+
+        if st.button("🗑️ Delete All Books"):
+            books_col.delete_many({})
+            fav_col.delete_many({})
+            st.success("All books and bookmarks deleted.")
+    else:
+        st.info("No user activity logged yet.")
+
+# --- User Dashboard ---
+def user_dashboard():
+    st.subheader("📂 My Download History")
+    user = st.session_state.get("user")
+    if not user or user == "admin":
+        st.warning("Login as a regular user to view your dashboard.")
+        return
+
+    logs = list(logs_col.find({"user": user, "type": "download"}, {"_id": 0}))
+    if logs:
+        df = pd.DataFrame(logs)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp", ascending=False)
+        st.dataframe(df)
+    else:
+        st.info("No download activity yet.")
+
+    st.subheader("⭐ My Bookmarks")
+    favs = fav_col.find({"user": user})
+    for fav in favs:
+        book = books_col.find_one({"_id": ObjectId(fav["book_id"])})
+        if book:
+            st.write(f"📘 {book['title']} ({book.get('language', '')})")
 
 # --- Main ---
 def main():
-    st.set_page_config("📚 DS Book Library", layout="wide")
-    set_theme()
-    st.title("📚 Data Science Book Library")
+    st.set_page_config("📚 PDF Book Library", layout="wide")
+    st.title("📚 PDF Book Library")
 
-    if "guest_downloads" not in st.session_state:
-        st.session_state["guest_downloads"] = 0
+    # Display trending books
+    st.subheader("🔥 Trending Books")
+    data = list(logs_col.find({}, {"_id": 0}))
+    if data:
+        df = pd.DataFrame(data)
+        trending = df[df["type"] == "download"].groupby("book").size().sort_values(ascending=False).head(3)
+        for title in trending.index:
+            st.write(f"📘 {title}")
 
     search_books()
     st.markdown("---")
@@ -224,16 +249,11 @@ def main():
             st.rerun()
         return
 
-    user = st.session_state["user"]
-    st.success(f"✅ Logged in as: {user}")
-
-    if user == "admin":
-        st.markdown("---")
+    if st.session_state["user"] == "admin":
         upload_book()
-        st.markdown("---")
         show_analytics()
-        st.markdown("---")
-        manage_users()
+    else:
+        user_dashboard()
 
     if st.button("Logout"):
         st.session_state.clear()
