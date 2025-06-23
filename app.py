@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 from bson import ObjectId
 import socket
+import gridfs
 
 # --- MongoDB Setup ---
 db_username = st.secrets["mongodb"]["username"]
@@ -22,6 +23,7 @@ books_col = db["books"]
 users_col = db["users"]
 logs_col = db["logs"]
 fav_col = db["favorites"]
+fs = gridfs.GridFS(db)
 
 # --- Helper to get user IP ---
 def get_ip():
@@ -96,18 +98,20 @@ def upload_book():
             if len(data) == 0:
                 st.error("File is empty")
                 return
-            encoded = base64.b64encode(data).decode("utf-8")
+            data = uploaded_file.read()
+            file_id = fs.put(data, filename=uploaded_file.name)
+            
             books_col.insert_one({
                 "title": title,
                 "author": author,
                 "language": language,
                 "course": course,
                 "keywords": [k.strip().lower() for k in keywords.split(",") if k.strip()],
+                "file_id": file_id,
                 "file_name": uploaded_file.name,
-                "file_base64": encoded,
                 "uploaded_at": datetime.utcnow()
             })
-            st.success("Book uploaded")
+                st.success("Book uploaded")
 
 # --- Admin Dashboard ---
 def admin_dashboard():
@@ -149,17 +153,20 @@ def user_dashboard(user):
         for book in books:
             st.write(f"📘 {book['title']} by {book.get('author', 'Unknown')}")
 
-# --- Search and View Books ---
 def search_books():
     st.subheader("🔎 Search Books")
+
     with st.expander("🔧 Advanced Search Filters", expanded=True):
         title = st.text_input("Title", key="search_title")
         author = st.text_input("Author", key="search_author")
         keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
+
+        # Filter out empty values
         languages = [l for l in books_col.distinct("language") if l and l.strip()]
         courses = [c for c in books_col.distinct("course") if c and c.strip()]
         language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
         course_filter = st.selectbox("Filter by Course", ["All"] + sorted(courses), key="search_course")
+
         col1, col2 = st.columns(2)
         with col1:
             search_triggered = st.button("🔍 Search")
@@ -176,7 +183,8 @@ def search_books():
     if author:
         query["author"] = {"$regex": author, "$options": "i"}
     if keyword_input:
-        query["keywords"] = {"$in": [k.strip().lower() for k in keyword_input.split(",") if k.strip()]}
+        keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
+        query["keywords"] = {"$in": keywords}
     if language_filter != "All":
         query["language"] = language_filter
     if course_filter != "All":
@@ -191,7 +199,9 @@ def search_books():
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
     guest_downloads_today = logs_col.count_documents({
-        "user": "guest", "ip": ip, "type": "download",
+        "user": "guest",
+        "ip": ip,
+        "type": "download",
         "timestamp": {"$gte": today_start}
     })
 
@@ -236,59 +246,188 @@ def search_books():
                         )
                         st.success("Updated!")
                         st.rerun()
+
                 if st.button("🗑️ Delete Book", key=f"del_{book['_id']}"):
+                    fs.delete(book["file_id"])
                     books_col.delete_one({"_id": book["_id"]})
                     fav_col.delete_many({"book_id": str(book["_id"])})
                     logs_col.delete_many({"book": book["title"]})
-                    st.success("Deleted book")
+                    st.warning("Deleted book")
                     st.rerun()
 
             elif can_download:
-                if st.download_button(
-                    label="📄 Download Book",
-                    data=base64.b64decode(book["file_base64"]),
-                    file_name=book["file_name"],
-                    mime="application/pdf",
-                    key=f"dl_{book['_id']}"
-                ):
-                    logs_col.insert_one({
-                        "type": "download", "user": user if user else "guest", "ip": ip,
-                        "book": book["title"], "author": book.get("author"),
-                        "language": book.get("language"), "timestamp": datetime.utcnow()
-                    })
+                try:
+                    grid_file = fs.get(book["file_id"])
+                    data = grid_file.read()
+                    file_name = grid_file.filename
+
+                    if st.download_button(
+                        label="📄 Download Book",
+                        data=data,
+                        file_name=file_name,
+                        mime="application/pdf",
+                        key=f"dl_{book['_id']}"
+                    ):
+                        logs_col.insert_one({
+                            "type": "download",
+                            "user": user if user else "guest",
+                            "ip": ip,
+                            "book": book["title"],
+                            "author": book.get("author"),
+                            "language": book.get("language"),
+                            "timestamp": datetime.utcnow()
+                        })
+                except Exception as e:
+                    st.error(f"Could not retrieve file from storage: {e}")
             else:
                 st.warning("Guests can download only 1 book per day. Please log in.")
+
+def manage_users():
+    st.subheader("👥 Manage Users")
+    search_query = st.text_input("Search by username", key="search_user")
+    query = {"username": {"$regex": search_query, "$options": "i"}} if search_query else {}
+    users = list(users_col.find(query))
+
+    if not users:
+        st.info("No users found.")
+        return
+
+    for user in users:
+        if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
+            confirm = st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}")
+        if confirm:
+            users_col.delete_one({"_id": user["_id"]})
+            logs_col.delete_many({"user": user["username"]})
+            fav_col.delete_many({"user": user["username"]})
+            st.warning("User deleted")
+            st.rerun()
+  # prevent modifying/deleting admin
+
+        with st.expander(f"👤 {user['username']}"):
+            st.write(f"✅ Verified: {'Yes' if user.get('verified') else 'No'}")
+            st.write(f"🕒 Joined: {user.get('created_at', 'N/A')}")
+            logs = list(logs_col.find({"user": user["username"]}).sort("timestamp", -1))
+            favs = list(fav_col.find({"user": user["username"]}))
+
+            if logs:
+                st.write("📥 Downloads:")
+                for l in logs[:5]:
+                    st.write(f"- {l['book']} on {l['timestamp'].strftime('%Y-%m-%d')}")
+
+            if favs:
+                st.write("⭐ Favorites:")
+                for f in favs:
+                    book = books_col.find_one({"_id": ObjectId(f["book_id"])})
+                    if book:
+                        st.write(f"- {book['title']}")
+
+            # User stats
+            dl_count = logs_col.count_documents({"user": user["username"], "type": "download"})
+            fav_count = fav_col.count_documents({"user": user["username"]})
+            st.write(f"📥 Downloads: {dl_count}")
+            st.write(f"⭐ Bookmarks: {fav_count}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("✅ Toggle Verified", key=f"verify_{user['_id']}"):
+                    users_col.update_one(
+                        {"_id": user["_id"]},
+                        {"$set": {"verified": not user.get("verified", False)}}
+                    )
+                    st.success("Verification status updated")
+                    st.rerun()
+
+            with col2:
+                if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
+                    users_col.delete_one({"_id": user["_id"]})
+                    logs_col.delete_many({"user": user["username"]})
+                    fav_col.delete_many({"user": user["username"]})
+                    st.warning("User deleted")
+                    st.rerun()
+
+
+def bulk_upload_with_gridfs():
+    st.subheader("📥 Bulk Upload Books via CSV + PDF")
+
+    st.markdown("""
+    **CSV Format Required:**
+    - `title`, `author`, `language`, `course`, `keywords`, `file_name`
+    - PDFs must be uploaded alongside the CSV and match `file_name`
+    """)
+
+    csv_file = st.file_uploader("Upload Metadata CSV", type="csv", key="bulk_csv_gridfs")
+    pdf_files = st.file_uploader("Upload PDF Files", type="pdf", accept_multiple_files=True, key="bulk_pdfs_gridfs")
+
+    pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
+
+    if csv_file:
+        df = pd.read_csv(csv_file)
+        count = 0
+
+        for _, row in df.iterrows():
+            file_name = row.get("file_name")
+            file_data = pdf_lookup.get(file_name)
+
+            if not file_data:
+                st.warning(f"Skipping '{row.get('title', 'Unknown')}' - no matching PDF file found.")
+                continue
+
+            file_id = fs.put(file_data, filename=file_name)
+
+            books_col.insert_one({
+                "title": row.get("title", ""),
+                "author": row.get("author", ""),
+                "language": row.get("language", ""),
+                "course": row.get("course", ""),
+                "keywords": [k.strip().lower() for k in str(row.get("keywords", "")).split(",")],
+                "file_name": file_name,
+                "file_id": file_id,
+                "uploaded_at": datetime.utcnow()
+            })
+            count += 1
+
+        st.success(f"{count} books uploaded successfully via GridFS!")
+
 
 # --- Main ---
 def main():
     st.set_page_config("📚 PDF Book Library")
     st.title("📚 PDF Book Library")
 
+    # Always show search section
     search_books()
     st.markdown("---")
 
+    # Login/Register
     if "user" not in st.session_state:
         choice = st.radio("Choose:", ["Login", "Register"])
         if choice == "Login":
             login_user()
         else:
             register_user()
-        st.stop()  # ✅ allows proper re-entry after login
+        st.stop()  # ensure streamlit waits for rerun after login
 
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
 
     if user == "admin":
         st.sidebar.markdown("## 🔐 Admin Controls")
-        admin_tab = st.sidebar.radio("🛠️ Admin Panel", ["📤 Upload Book", "📊 Analytics", "👥 Manage Users"])
+        admin_tab = st.sidebar.radio("🛠️ Admin Panel", [
+            "📤 Upload Book",
+            "📥 Bulk Upload",
+            "📊 Analytics",
+            "👥 Manage Users"
+        ])
 
         if admin_tab == "📤 Upload Book":
             upload_book()
+        elif admin_tab == "📥 Bulk Upload":
+            bulk_upload_with_gridfs()
         elif admin_tab == "📊 Analytics":
             admin_dashboard()
         elif admin_tab == "👥 Manage Users":
-            st.subheader("👥 Manage Users (Coming Soon)")
-            st.info("This section will allow you to view and manage registered users.")
+            manage_users()
     else:
         user_dashboard(user)
 
