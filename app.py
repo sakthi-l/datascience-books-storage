@@ -2,7 +2,7 @@ import streamlit as st
 import base64
 import bcrypt
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, time
 import pandas as pd
 import plotly.express as px
 from bson import ObjectId
@@ -24,7 +24,7 @@ fav_col = db["favorites"]
 
 # --- Registration ---
 def register_user():
-    st.subheader("📝 Register")
+    st.subheader("🌽 Register")
     username = st.text_input("Username", key="reg_username")
     password = st.text_input("Password", type="password", key="reg_password")
     if st.button("Register"):
@@ -99,16 +99,12 @@ def search_books():
         query["language"] = language_filter
 
     books = books_col.find(query)
-    from datetime import time
-
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
-
     guest_downloads_today = logs_col.count_documents({
-    "user": "guest",
-    "type": "download",
-    "timestamp": {"$gte": today_start}
-})
-
+        "user": "guest",
+        "type": "download",
+        "timestamp": {"$gte": today_start}
+    })
 
     for book in books:
         with st.expander(book["title"]):
@@ -150,7 +146,6 @@ def search_books():
                 st.warning("Guests can download only 1 book per day. Please log in for unlimited access.")
 
 
-            
 # --- Admin Analytics ---
 def show_analytics():
     st.subheader("📊 Analytics")
