@@ -136,7 +136,6 @@ def user_dashboard(user):
         books = books_col.find({"_id": {"$in": book_ids}})
         for book in books:
             st.write(f"\U0001F4D8 {book['title']} by {book.get('author', 'Unknown')}")
-
 # --- Admin Dashboard ---
 def admin_dashboard():
     st.subheader("\U0001F4CA Admin Analytics")
@@ -231,25 +230,25 @@ def search_books():
                     st.warning("Login to bookmark books")
 
             if can_download:
-                st.download_button(
+                download_clicked = st.download_button(
                     label="\U0001F4C4 Download Book",
                     data=base64.b64decode(book["file_base64"]),
                     file_name=book["file_name"],
                     mime="application/pdf",
                     key=f"dl_{book['_id']}"
                 )
-                logs_col.insert_one({
-                    "type": "download",
-                    "user": user if user else "guest",
-                    "ip": ip,
-                    "book": book["title"],
-                    "author": book.get("author"),
-                    "language": book.get("language"),
-                    "timestamp": datetime.utcnow()
-                })
+                if download_clicked:
+                    logs_col.insert_one({
+                        "type": "download",
+                        "user": user if user else "guest",
+                        "ip": ip,
+                        "book": book["title"],
+                        "author": book.get("author"),
+                        "language": book.get("language"),
+                        "timestamp": datetime.utcnow()
+                    })
             else:
                 st.warning("Guests can download only 1 book per day per IP. Please log in for unlimited access.")
-
 # --- Main ---
 def main():
     st.set_page_config("\U0001F4DA DATASCIENCE Book Library")
