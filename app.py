@@ -113,6 +113,8 @@ import streamlit.components.v1 as components
 import tempfile
 import base64
 
+import streamlit.components.v1 as components
+
 def search_books():
     st.subheader("🔎 Advanced Search")
     query = {}
@@ -156,17 +158,15 @@ def search_books():
             st.write(f"**Language:** {book.get('language')}")
             st.write(f"**Year:** {book.get('published_year')}")
 
-            # 👁️ View PDF (works for all)
+            # 👁️ View full PDF (inline, works for all users)
             if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                    tmp_file.write(base64.b64decode(book["file_base64"]))
-                    tmp_file_path = tmp_file.name
-                with open(tmp_file_path, "rb") as f:
-                    base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-                    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf">'
-                    st.markdown(pdf_display, unsafe_allow_html=True)
+                st.markdown(
+                    f'<iframe src="data:application/pdf;base64,{book["file_base64"]}" '
+                    f'width="100%" height="700px" style="border: none;"></iframe>',
+                    unsafe_allow_html=True
+                )
 
-            # 🔐 Download and Bookmark only if logged in
+            # 🔒 Allow download only for logged-in users
             user = st.session_state.get("user")
             if user and user != "admin":
                 st.download_button(
@@ -175,11 +175,13 @@ def search_books():
                     file_name=book["file_name"],
                     mime="application/pdf"
                 )
+
                 fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
                 if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
                     if not fav:
                         fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
                         st.success("Bookmarked!")
+
             elif user == "admin":
                 st.info("Admin access granted. Download/bookmark not shown.")
             else:
