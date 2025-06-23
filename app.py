@@ -107,3 +107,140 @@ def upload_book():
             "isbn": isbn,
             "language": language,
             "published_year": year,
+            "file_base64": encoded,
+            "file_name": uploaded_file.name,
+            "uploaded_at": datetime.utcnow(),
+            "preview": preview
+        }
+        books_col.insert_one(book)
+        st.success("✅ Book uploaded")
+
+# --- Search Books ---
+def search_books():
+    st.markdown('<h3 style="font-size:24px;">🔎 Advanced Search</h3>', unsafe_allow_html=True)
+    query = {}
+    col1, col2 = st.columns(2)
+    with col1:
+        title = st.text_input("Title", key="search_title")
+        author = st.text_input("Author", key="search_author")
+        keywords = st.text_input("Keywords", key="search_keywords")
+        domain = st.text_input("Domain", key="search_domain")
+    with col2:
+        isbn = st.text_input("ISBN", key="search_isbn")
+        language = st.text_input("Language", key="search_language")
+        year = st.text_input("Published Year", key="search_year")
+
+    if title:
+        query["title"] = {"$regex": title, "$options": "i"}
+    if author:
+        query["author"] = {"$regex": author, "$options": "i"}
+    if keywords:
+        query["keywords"] = {"$in": [k.strip() for k in keywords.split(",")]}
+    if domain:
+        query["domain"] = {"$regex": domain, "$options": "i"}
+    if isbn:
+        query["isbn"] = {"$regex": isbn, "$options": "i"}
+    if language:
+        query["language"] = {"$regex": language, "$options": "i"}
+    if year:
+        query["published_year"] = year
+
+    books = list(books_col.find(query))
+    if not books:
+        st.info("No books matched your query.")
+        return
+
+    for book in books:
+        with st.expander(book["title"]):
+            st.write(f"Author: {book.get('author')}")
+            st.write(f"Keywords: {', '.join(book.get('keywords', []))}")
+            st.write(f"Domain: {book.get('domain')}")
+            st.write(f"ISBN: {book.get('isbn')}")
+            st.write(f"Language: {book.get('language')}")
+            st.write(f"Year: {book.get('published_year')}")
+            if preview := book.get("preview"):
+                st.text_area("📖 Preview", preview[:1000], height=150, key=f"preview_{book['_id']}")
+
+            user = st.session_state.get("user")
+            if user and user != "admin":
+                fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
+                if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
+                    if not fav:
+                        fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
+                        st.success("Bookmarked!")
+                if st.button(f"📅 Download {book['file_name']}", key=f"dl_{book['_id']}"):
+                    logs_col.insert_one({"type": "download", "user": user, "book": book['title'], "timestamp": datetime.utcnow()})
+                    href = f'<a href="data:application/pdf;base64,{book["file_base64"]}" download="{book["file_name"]}">Download PDF</a>'
+                    st.markdown(href, unsafe_allow_html=True)
+            elif user == "admin":
+                st.info("Admin access granted. Download/Bookmark not shown.")
+            else:
+                st.warning("🔐 Please log in to download or bookmark this book.")
+
+# --- Admin Dashboard ---
+def show_analytics():
+    st.markdown('<h3 style="font-size:24px;">📊 Admin Dashboard</h3>', unsafe_allow_html=True)
+    st.metric("Books", books_col.count_documents({}))
+    st.metric("Users", users_col.count_documents({}))
+    st.metric("Downloads", logs_col.count_documents({"type": "download"}))
+    data = list(logs_col.find({}, {"_id": 0}))
+    if data:
+        df = pd.DataFrame(data)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        fig = px.histogram(df, x="timestamp", title="Activity Over Time")
+        st.plotly_chart(fig)
+
+# --- Admin: Manage Users ---
+def manage_users():
+    st.markdown('<h3 style="font-size:24px;">👥 Manage Users</h3>', unsafe_allow_html=True)
+    users = list(users_col.find({}, {"_id": 0, "username": 1, "created_at": 1}))
+    if users:
+        df = pd.DataFrame(users)
+        st.dataframe(df)
+
+        usernames = [u["username"] for u in users if u["username"] != "admin"]
+        selected_user = st.selectbox("Select user to delete", usernames)
+
+        if st.button("❌ Delete User"):
+            users_col.delete_one({"username": selected_user})
+            fav_col.delete_many({"user": selected_user})
+            logs_col.delete_many({"user": selected_user})
+            st.success(f"User '{selected_user}' deleted.")
+            st.rerun()
+    else:
+        st.info("No registered users found.")
+
+# --- Main ---
+def main():
+    st.set_page_config("📚 DS Book Library", layout="wide")
+    set_theme()
+    st.markdown('<h1 style="font-size:32px;">📚 Data Science Book Library</h1>', unsafe_allow_html=True)
+    search_books()
+    st.markdown("---")
+
+    if "user" not in st.session_state:
+        choice = st.radio("Choose:", ["Login", "Register"], key="auth_radio")
+        if choice == "Login":
+            login_user()
+        else:
+            register_user()
+        if "user" in st.session_state:
+            st.rerun()
+        return
+
+    user = st.session_state["user"]
+    st.success(f"✅ Logged in as: {user}")
+    if user == "admin":
+        st.markdown("---")
+        upload_book()
+        st.markdown("---")
+        show_analytics()
+        st.markdown("---")
+        manage_users()
+
+    if st.button("Logout"):
+        st.session_state.clear()
+        st.rerun()
+
+if __name__ == "__main__":
+    main()
