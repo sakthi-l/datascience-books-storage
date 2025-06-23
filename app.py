@@ -33,7 +33,7 @@ def get_ip():
 
 # --- Registration ---
 def register_user():
-    st.subheader("\U0001F33D Register")
+    st.subheader("🌽 Register")
     username = st.text_input("Username", key="reg_username")
     password = st.text_input("Password", type="password", key="reg_password")
     if st.button("Register"):
@@ -51,7 +51,7 @@ def register_user():
 
 # --- Login ---
 def login_user():
-    st.subheader("\U0001F510 Login")
+    st.subheader("🔐 Login")
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
     if st.button("Login"):
@@ -68,108 +68,58 @@ def login_user():
 
 # --- Upload Book (Admin Only) ---
 def upload_book():
-    st.subheader("\U0001F4C4 Upload Book")
+    st.subheader("📄 Upload Book")
     uploaded_file = st.file_uploader("Upload PDF", type="pdf", key="upload_pdf")
     if uploaded_file:
         title = st.text_input("Title", value=uploaded_file.name.rsplit('.', 1)[0], key="upload_title")
         author = st.text_input("Author", key="upload_author")
         language = st.text_input("Language", key="upload_language")
-
+        keywords = st.text_input("Keywords (comma-separated)", key="upload_keywords")
         course_options = [
-            "MAT445 - Probability & Statistics using R",
-            "MAT446R01 - Mathematics for Data Science",
-            "BIN522 - Python for Data Science",
-            "INT413 - RDBMS, SQL & Visualization",
-            "INT531 - Data Mining Techniques",
-            "INT530R01 - Artificial Intelligence & Reasoning",
-            "INT534R01 - Machine Learning",
-            "CSE614R01 - Big Data Mining & Analytics",
-            "INT418 - Predictive Analytics",
-            "OEH014 - Ethics & Data Security",
-            "INT419R01 - Applied Spatial Data Analytics Using R",
-            "ICT601 - Machine Vision",
-            "CSE615 - Deep Learning & Applications",
-            "INT446 - Generative AI with LLMs",
-            "CSE542 - Social Networks & Graph Analysis",
-            "INT442 - Data Visualization Techniques",
-            "INT424 - Algorithmic Trading",
-            "INT426 - Bayesian Data Analysis",
-            "BIN533R01 - Healthcare Data Analytics",
-            "BIN529 - Data Science for Structural Biology",
+            "MAT445 - Probability & Statistics using R", "MAT446R01 - Mathematics for Data Science",
+            "BIN522 - Python for Data Science", "INT413 - RDBMS, SQL & Visualization",
+            "INT531 - Data Mining Techniques", "INT530R01 - Artificial Intelligence & Reasoning",
+            "INT534R01 - Machine Learning", "CSE614R01 - Big Data Mining & Analytics",
+            "INT418 - Predictive Analytics", "OEH014 - Ethics & Data Security",
+            "INT419R01 - Applied Spatial Data Analytics Using R", "ICT601 - Machine Vision",
+            "CSE615 - Deep Learning & Applications", "INT446 - Generative AI with LLMs",
+            "CSE542 - Social Networks & Graph Analysis", "INT442 - Data Visualization Techniques",
+            "INT424 - Algorithmic Trading", "INT426 - Bayesian Data Analysis",
+            "BIN533R01 - Healthcare Data Analytics", "BIN529 - Data Science for Structural Biology",
             "Other / Not Mapped"
         ]
         course = st.selectbox("Course", course_options, key="upload_course")
-
         if st.button("Upload", key="upload_button"):
             data = uploaded_file.read()
             if len(data) == 0:
                 st.error("File is empty")
                 return
-
             encoded = base64.b64encode(data).decode("utf-8")
             books_col.insert_one({
                 "title": title,
                 "author": author,
                 "language": language,
                 "course": course,
+                "keywords": [k.strip().lower() for k in keywords.split(",") if k.strip()],
                 "file_name": uploaded_file.name,
                 "file_base64": encoded,
                 "uploaded_at": datetime.utcnow()
             })
             st.success("Book uploaded")
 
-# --- User Dashboard ---
-def user_dashboard(user):
-    st.subheader("\U0001F4CA Your Dashboard")
-    logs = list(logs_col.find({"user": user}))
-    favs = list(fav_col.find({"user": user}))
-
-    if logs:
-        df = pd.DataFrame(logs)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        st.write("### \U0001F4C4 Download History")
-        st.dataframe(df[['book', 'author', 'language', 'timestamp']])
-
-    if favs:
-        st.write("### ⭐ Bookmarked Books")
-        book_ids = [ObjectId(f['book_id']) for f in favs]
-        books = books_col.find({"_id": {"$in": book_ids}})
-        for book in books:
-            st.write(f"\U0001F4D8 {book['title']} by {book.get('author', 'Unknown')}")
 # --- Admin Dashboard ---
 def admin_dashboard():
-    st.subheader("\U0001F4CA Admin Analytics")
+    st.subheader("📊 Admin Analytics")
     total_views = logs_col.count_documents({})
     total_downloads = logs_col.count_documents({"type": "download"})
     st.metric("Total Activity", total_views)
     st.metric("Total Downloads", total_downloads)
-
     logs = list(logs_col.find())
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df_grouped = df.groupby('book').size().reset_index(name='count')
-        st.write("### \U0001F525 Most Accessed Books")
-        st.dataframe(df_grouped.sort_values('count', ascending=False))
-
-        st.write("### \U0001F4E5 Logs")
         st.dataframe(df[['user', 'book', 'timestamp', 'type']])
-        st.download_button("Export Logs CSV", df.to_csv(index=False), file_name="logs.csv")
-
-    st.write("### ⭐ Most Bookmarked Books")
-    agg = fav_col.aggregate([{"$group": {"_id": "$book_id", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}])
-    for row in agg:
-        book = books_col.find_one({"_id": ObjectId(row['_id'])})
-        if book:
-            st.write(f"{book['title']} - {row['count']} bookmarks")
-
-    st.write("### ⬇ Export All Bookmarks")
-    favs = list(fav_col.find())
-    if favs:
-        df = pd.DataFrame(favs)
-        st.download_button("Download Bookmarks CSV", df.to_csv(index=False), file_name="bookmarks.csv")
-
-    st.write("### \U0001F4DA Books Uploaded per Course")
+    st.write("### 📚 Books Uploaded per Course")
     course_stats = books_col.aggregate([
         {"$group": {"_id": "$course", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}}
@@ -181,66 +131,74 @@ def admin_dashboard():
         fig = px.bar(df, x="Course", y="Count", title="Books per Course")
         st.plotly_chart(fig)
 
+# --- User Dashboard ---
+def user_dashboard(user):
+    st.subheader("📊 Your Dashboard")
+    logs = list(logs_col.find({"user": user}))
+    favs = list(fav_col.find({"user": user}))
+    if logs:
+        df = pd.DataFrame(logs)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        st.dataframe(df[['book', 'author', 'language', 'timestamp']])
+    if favs:
+        st.write("### ⭐ Bookmarked Books")
+        book_ids = [ObjectId(f['book_id']) for f in favs]
+        books = books_col.find({"_id": {"$in": book_ids}})
+        for book in books:
+            st.write(f"📘 {book['title']} by {book.get('author', 'Unknown')}")
+
 # --- Search and View Books ---
 def search_books():
     st.subheader("🔎 Search Books")
-
     with st.expander("🔧 Advanced Search Filters", expanded=True):
         title = st.text_input("Title", key="search_title")
         author = st.text_input("Author", key="search_author")
-        language_filter = st.selectbox("Filter by Language", ["All"] + sorted(books_col.distinct("language")), key="search_language")
-        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(books_col.distinct("course")), key="search_course")
-
+        keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
+        languages = [l for l in books_col.distinct("language") if l and l.strip()]
+        courses = [c for c in books_col.distinct("course") if c and c.strip()]
+        language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
+        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(courses), key="search_course")
         col1, col2 = st.columns(2)
         with col1:
             search_triggered = st.button("🔍 Search")
         with col2:
             if st.button("🔄 Clear Filters"):
-                for key in ["search_title", "search_author", "search_language", "search_course"]:
+                for key in ["search_title", "search_author", "search_language", "search_course", "search_keywords"]:
                     if key in st.session_state:
                         del st.session_state[key]
                 st.rerun()
 
-    # Build query based on filters
     query = {}
     if title:
         query["title"] = {"$regex": title, "$options": "i"}
     if author:
         query["author"] = {"$regex": author, "$options": "i"}
+    if keyword_input:
+        query["keywords"] = {"$in": [k.strip().lower() for k in keyword_input.split(",") if k.strip()]}
     if language_filter != "All":
         query["language"] = language_filter
     if course_filter != "All":
         query["course"] = course_filter
 
-    ip = get_ip()
-    today_start = datetime.combine(datetime.utcnow().date(), time.min)
-    guest_downloads_today = logs_col.count_documents({
-        "user": "guest",
-        "ip": ip,
-        "type": "download",
-        "timestamp": {"$gte": today_start}
-    })
-
-    # 📚 Get books based on query or show all if not searched
     if search_triggered:
         books = books_col.find(query)
     else:
         st.info("Showing latest 50 books. Use search filters to narrow down.")
         books = books_col.find().sort("uploaded_at", -1).limit(50)
 
+    ip = get_ip()
+    today_start = datetime.combine(datetime.utcnow().date(), time.min)
+    guest_downloads_today = logs_col.count_documents({
+        "user": "guest", "ip": ip, "type": "download",
+        "timestamp": {"$gte": today_start}
+    })
+
     for book in books:
         with st.expander(f"{book['title']}"):
-            st.write(f"**Author**: {book.get('author', 'N/A')}")
-            st.write(f"**Language**: {book.get('language', 'N/A')}")
-            st.write(f"**Course**: {book.get('course', 'Not tagged')}")
-                        # Admin delete option
-            if st.session_state.get("user") == "admin":
-                if st.button("🗑️ Delete Book", key=f"del_{book['_id']}"):
-                    books_col.delete_one({"_id": book["_id"]})
-                    fav_col.delete_many({"book_id": str(book["_id"])})
-                    logs_col.delete_many({"book": book["title"]})
-                    st.success(f"Deleted book: {book['title']}")
-                    st.rerun()
+            st.write(f"**Author:** {book.get('author', 'N/A')}")
+            st.write(f"**Language:** {book.get('language', 'N/A')}")
+            st.write(f"**Course:** {book.get('course', 'Not tagged')}")
+            st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
 
             user = st.session_state.get("user")
             can_download = user or guest_downloads_today < 1
@@ -256,30 +214,53 @@ def search_books():
                 else:
                     st.warning("Login to bookmark books")
 
-            if can_download:
-                download_clicked = st.download_button(
+            if user == "admin":
+                with st.expander("🛠️ Edit Metadata"):
+                    new_title = st.text_input("Title", value=book["title"], key=f"et_{book['_id']}")
+                    new_author = st.text_input("Author", value=book.get("author", ""), key=f"ea_{book['_id']}")
+                    new_lang = st.text_input("Language", value=book.get("language", ""), key=f"el_{book['_id']}")
+                    new_course = st.text_input("Course", value=book.get("course", ""), key=f"ec_{book['_id']}")
+                    new_keywords = st.text_input("Keywords", value=", ".join(book.get("keywords", [])), key=f"ek_{book['_id']}")
+                    if st.button("💾 Save Changes", key=f"save_{book['_id']}"):
+                        books_col.update_one(
+                            {"_id": book["_id"]},
+                            {"$set": {
+                                "title": new_title,
+                                "author": new_author,
+                                "language": new_lang,
+                                "course": new_course,
+                                "keywords": [k.strip().lower() for k in new_keywords.split(",") if k.strip()]
+                            }}
+                        )
+                        st.success("Updated!")
+                        st.rerun()
+                if st.button("🗑️ Delete Book", key=f"del_{book['_id']}"):
+                    books_col.delete_one({"_id": book["_id"]})
+                    fav_col.delete_many({"book_id": str(book["_id"])})
+                    logs_col.delete_many({"book": book["title"]})
+                    st.success("Deleted book")
+                    st.rerun()
+
+            elif can_download:
+                if st.download_button(
                     label="📄 Download Book",
                     data=base64.b64decode(book["file_base64"]),
                     file_name=book["file_name"],
                     mime="application/pdf",
                     key=f"dl_{book['_id']}"
-                )
-                if download_clicked:
+                ):
                     logs_col.insert_one({
-                        "type": "download",
-                        "user": user if user else "guest",
-                        "ip": ip,
-                        "book": book["title"],
-                        "author": book.get("author"),
-                        "language": book.get("language"),
-                        "timestamp": datetime.utcnow()
+                        "type": "download", "user": user if user else "guest", "ip": ip,
+                        "book": book["title"], "author": book.get("author"),
+                        "language": book.get("language"), "timestamp": datetime.utcnow()
                     })
             else:
-                st.warning("Guests can download only 1 book per day per IP. Please log in for unlimited access.")
+                st.warning("Guests can download only 1 book per day. Please log in.")
+
 # --- Main ---
 def main():
-    st.set_page_config("\U0001F4DA DATASCIENCE Book Library")
-    st.title("\U0001F4DA PDF Book Library")
+    st.set_page_config("📚 PDF Book Library")
+    st.title("📚 PDF Book Library")
 
     search_books()
     st.markdown("---")
@@ -296,12 +277,15 @@ def main():
     st.success(f"Logged in as: {user}")
 
     if user == "admin":
-        st.markdown("---")
-        upload_book()
-        st.markdown("---")
-        admin_dashboard()
+        st.sidebar.markdown("## 🔐 Admin Controls")
+        admin_tab = st.sidebar.radio("🛠️ Admin Panel", ["📤 Upload Book", "📊 Analytics", "👥 Manage Users"])
+        if admin_tab == "📤 Upload Book":
+            upload_book()
+        elif admin_tab == "📊 Analytics":
+            admin_dashboard()
+        elif admin_tab == "👥 Manage Users":
+            st.subheader("👥 Manage Users (Coming Soon)")
     else:
-        st.markdown("---")
         user_dashboard(user)
 
     if st.button("Logout"):
