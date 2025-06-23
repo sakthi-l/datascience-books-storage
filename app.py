@@ -169,14 +169,12 @@ def search_books():
             st.write(f"**Year:** {book.get('published_year')}")
 
             # 👁️ View PDF (works for all)
-            if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                    tmp_file.write(base64.b64decode(book["file_base64"]))
-                    tmp_file_path = tmp_file.name
-                with open(tmp_file_path, "rb") as f:
-                    base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-                    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf">'
-                    st.markdown(pdf_display, unsafe_allow_html=True)
+        if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
+            pdf_data_uri = f"data:application/pdf;base64,{book['file_base64']}"
+            st.markdown(
+                f'<a href="{pdf_data_uri}" target="_blank">🔗 Click here to open full PDF in a new tab</a>',
+                unsafe_allow_html=True
+            )
 
             # 🔐 Download and Bookmark only if logged in
             user = st.session_state.get("user")
