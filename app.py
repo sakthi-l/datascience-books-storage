@@ -117,17 +117,6 @@ def upload_book():
 from PIL import Image
 import io
 
-def show_pdf_page_as_image(encoded_base64, title):
-    try:
-        pdf_data = base64.b64decode(encoded_base64)
-        doc = fitz.open(stream=pdf_data, filetype="pdf")
-        page = doc.load_page(0)
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # High-res
-        img = Image.open(io.BytesIO(pix.tobytes("png")))
-        st.image(img, caption=f"📖 {title} – First Page Preview", use_column_width=True)
-    except Exception as e:
-        st.error("❌ Failed to render PDF preview.")
-
 # --- Search Books ---
 import streamlit.components.v1 as components
 
@@ -174,15 +163,12 @@ def search_books():
             st.write(f"**Language:** {book.get('language')}")
             st.write(f"**Year:** {book.get('published_year')}")
 
-            # 👁️ Show first page image preview
-            show_pdf_page_as_image(book["file_base64"], book["title"])
-
-            # 📖 View full PDF (visible to all)
+            # 👁️ View full PDF (inline for all users)
             if st.button(f"📖 View PDF – {book['file_name']}", key=f"view_{book['_id']}"):
                 pdf_link = f'<iframe src="data:application/pdf;base64,{book["file_base64"]}" width="100%" height="700px"></iframe>'
                 st.markdown(pdf_link, unsafe_allow_html=True)
 
-            # 🔒 Download only for logged-in users
+            # 🔒 Allow download only for logged-in users
             user = st.session_state.get("user")
             if user and user != "admin":
                 st.download_button(
@@ -191,11 +177,13 @@ def search_books():
                     file_name=book["file_name"],
                     mime="application/pdf"
                 )
+
                 fav = fav_col.find_one({"user": user, "book_id": str(book['_id'])})
                 if st.button("⭐ Bookmark" if not fav else "✅ Bookmarked", key=f"fav_{book['_id']}"):
                     if not fav:
                         fav_col.insert_one({"user": user, "book_id": str(book['_id'])})
                         st.success("Bookmarked!")
+
             elif user == "admin":
                 st.info("Admin access granted. Download/bookmark not shown.")
             else:
