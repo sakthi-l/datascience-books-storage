@@ -29,15 +29,50 @@ fav_col = db["favorites"]
 # --- Theme Toggle ---
 def set_theme():
     theme = st.radio("Select Theme", ["Light", "Dark"], horizontal=True, key="theme_toggle")
+
     if theme == "Dark":
         st.markdown("""
             <style>
-            body {
-                background-color: #0E1117;
-                color: white;
-            }
+                .stApp {
+                    background-color: #0E1117;
+                    color: white;
+                }
+                div[data-testid="stSidebar"] {
+                    background-color: #161A23;
+                }
+                input, textarea, .stButton > button {
+                    background-color: #2c2f38;
+                    color: white;
+                    border-color: #444;
+                }
+                .stTextInput > div > div > input {
+                    background-color: #2c2f38;
+                    color: white;
+                }
             </style>
         """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+            <style>
+                .stApp {
+                    background-color: white;
+                    color: black;
+                }
+                div[data-testid="stSidebar"] {
+                    background-color: #F0F2F6;
+                }
+                input, textarea, .stButton > button {
+                    background-color: white;
+                    color: black;
+                    border-color: #ccc;
+                }
+                .stTextInput > div > div > input {
+                    background-color: white;
+                    color: black;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
 
 # --- Registration Without Email Verification ---
 def register_user():
