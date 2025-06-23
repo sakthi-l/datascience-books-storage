@@ -183,12 +183,25 @@ def admin_dashboard():
 
 # --- Search and View Books ---
 def search_books():
-    st.subheader("\U0001F50E Search Books")
-    title = st.text_input("Title", key="search_title")
-    author = st.text_input("Author", key="search_author")
-    language_filter = st.selectbox("Filter by Language", ["All"] + sorted(books_col.distinct("language")), key="search_language")
-    course_filter = st.selectbox("Filter by Course", ["All"] + sorted(books_col.distinct("course")), key="search_course")
+    st.subheader("🔎 Search Books")
 
+    with st.expander("🔧 Advanced Search Filters", expanded=True):
+        title = st.text_input("Title", key="search_title")
+        author = st.text_input("Author", key="search_author")
+        language_filter = st.selectbox("Filter by Language", ["All"] + sorted(books_col.distinct("language")), key="search_language")
+        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(books_col.distinct("course")), key="search_course")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            search_triggered = st.button("🔍 Search")
+        with col2:
+            if st.button("🔄 Clear Filters"):
+                for key in ["search_title", "search_author", "search_language", "search_course"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.experimental_rerun()
+
+    # Build query
     query = {}
     if title:
         query["title"] = {"$regex": title, "$options": "i"}
@@ -199,56 +212,58 @@ def search_books():
     if course_filter != "All":
         query["course"] = course_filter
 
-    books = books_col.find(query)
-    ip = get_ip()
-    today_start = datetime.combine(datetime.utcnow().date(), time.min)
-    guest_downloads_today = logs_col.count_documents({
-        "user": "guest",
-        "ip": ip,
-        "type": "download",
-        "timestamp": {"$gte": today_start}
-    })
+    # Trigger search
+    if search_triggered:
+        books = books_col.find(query)
+        ip = get_ip()
+        today_start = datetime.combine(datetime.utcnow().date(), time.min)
+        guest_downloads_today = logs_col.count_documents({
+            "user": "guest",
+            "ip": ip,
+            "type": "download",
+            "timestamp": {"$gte": today_start}
+        })
 
-    for book in books:
-        with st.expander(book["title"]):
-            st.write(f"Author: {book.get('author')}")
-            st.write(f"Language: {book.get('language')}")
-            st.write(f"Course: {book.get('course', 'Not tagged')}")
+        for book in books:
+            with st.expander(f"{book['title']}"):
+                st.write(f"**Author**: {book.get('author', 'N/A')}")
+                st.write(f"**Language**: {book.get('language', 'N/A')}")
+                st.write(f"**Course**: {book.get('course', 'Not tagged')}")
 
-            user = st.session_state.get("user")
-            can_download = user or guest_downloads_today < 1
+                user = st.session_state.get("user")
+                can_download = user or guest_downloads_today < 1
 
-            if st.button("⭐ Bookmark", key=f"fav_{book['_id']}"):
-                if user:
-                    fav_col.update_one(
-                        {"user": user, "book_id": str(book['_id'])},
-                        {"$set": {"timestamp": datetime.utcnow()}},
-                        upsert=True
+                if st.button("⭐ Bookmark", key=f"fav_{book['_id']}"):
+                    if user:
+                        fav_col.update_one(
+                            {"user": user, "book_id": str(book['_id'])},
+                            {"$set": {"timestamp": datetime.utcnow()}},
+                            upsert=True
+                        )
+                        st.success("Bookmarked")
+                    else:
+                        st.warning("Login to bookmark books")
+
+                if can_download:
+                    download_clicked = st.download_button(
+                        label="📄 Download Book",
+                        data=base64.b64decode(book["file_base64"]),
+                        file_name=book["file_name"],
+                        mime="application/pdf",
+                        key=f"dl_{book['_id']}"
                     )
-                    st.success("Bookmarked")
+                    if download_clicked:
+                        logs_col.insert_one({
+                            "type": "download",
+                            "user": user if user else "guest",
+                            "ip": ip,
+                            "book": book["title"],
+                            "author": book.get("author"),
+                            "language": book.get("language"),
+                            "timestamp": datetime.utcnow()
+                        })
                 else:
-                    st.warning("Login to bookmark books")
-
-            if can_download:
-                download_clicked = st.download_button(
-                    label="\U0001F4C4 Download Book",
-                    data=base64.b64decode(book["file_base64"]),
-                    file_name=book["file_name"],
-                    mime="application/pdf",
-                    key=f"dl_{book['_id']}"
-                )
-                if download_clicked:
-                    logs_col.insert_one({
-                        "type": "download",
-                        "user": user if user else "guest",
-                        "ip": ip,
-                        "book": book["title"],
-                        "author": book.get("author"),
-                        "language": book.get("language"),
-                        "timestamp": datetime.utcnow()
-                    })
-            else:
-                st.warning("Guests can download only 1 book per day per IP. Please log in for unlimited access.")
+                    st.warning("Guests can download only 1 book per day per IP. Please log in for unlimited access.")
 # --- Main ---
 def main():
     st.set_page_config("\U0001F4DA DATASCIENCE Book Library")
