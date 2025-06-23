@@ -111,7 +111,7 @@ def upload_book():
                 "file_name": uploaded_file.name,
                 "uploaded_at": datetime.utcnow()
             })
-                st.success("Book uploaded")
+            st.success("Book uploaded")
 
 # --- Admin Dashboard ---
 def admin_dashboard():
