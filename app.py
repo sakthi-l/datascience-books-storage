@@ -340,12 +340,12 @@ def manage_users():
             with col2:
                 if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
                 confirm = st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}")
-                if confirm:
-                    users_col.delete_one({"_id": user["_id"]})
-                    logs_col.delete_many({"user": user["username"]})
-                    fav_col.delete_many({"user": user["username"]})
-                    st.warning("User deleted")
-                    st.rerun()
+                    if confirm:
+                        users_col.delete_one({"_id": user["_id"]})
+                        logs_col.delete_many({"user": user["username"]})
+                        fav_col.delete_many({"user": user["username"]})
+                        st.warning("User deleted")
+                        st.rerun()
 
 
 
