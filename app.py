@@ -153,68 +153,58 @@ def user_dashboard(user):
 
 def search_books():
     st.subheader("🔎 Search Books")
-
     with st.expander("🔧 Advanced Search Filters", expanded=True):
         title = st.text_input("Title", key="search_title")
         author = st.text_input("Author", key="search_author")
         keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
 
-        # Filter out empty values
         languages = [l for l in books_col.distinct("language") if l and l.strip()]
-        course_options = [
-    "Probability & Statistics using R", "Mathematics for Data Science",
-    "Python for Data Science", "RDBMS, SQL & Visualization",
-    "Data Mining Techniques", "Artificial Intelligence & Reasoning",
-    "Machine Learning", "Big Data Mining & Analytics",
-    "Predictive Analytics", "Ethics & Data Security",
-    "Applied Spatial Data Analytics Using R", "Machine Vision",
-    "Deep Learning & Applications", "Generative AI with LLMs",
-    "Social Networks & Graph Analysis", "Data Visualization Techniques",
-    "Algorithmic Trading", "Bayesian Data Analysis",
-    "Healthcare Data Analytics", "Data Science for Structural Biology",
-    "Other / Not Mapped"
-]
-        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(course_options), key="search_course")
+        existing_courses = books_col.distinct("course")
+        default_courses = [
+            "Probability & Statistics using R", "Mathematics for Data Science",
+            "Python for Data Science", "RDBMS, SQL & Visualization",
+            "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+            "Machine Learning", "Big Data Mining & Analytics",
+            "Predictive Analytics", "Ethics & Data Security",
+            "Applied Spatial Data Analytics Using R", "Machine Vision",
+            "Deep Learning & Applications", "Generative AI with LLMs",
+            "Social Networks & Graph Analysis", "Data Visualization Techniques",
+            "Algorithmic Trading", "Bayesian Data Analysis",
+            "Healthcare Data Analytics", "Data Science for Structural Biology",
+            "Other / Not Mapped"
+        ]
+        all_courses = sorted(set(default_courses + existing_courses))
 
+        course_filter = st.selectbox("Filter by Course", ["All"] + all_courses, key="search_course")
         language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            search_triggered = st.button("🔍 Search")
-        with col2:
-            if st.button("🔄 Clear Filters"):
-                for key in ["search_title", "search_author", "search_language", "search_course", "search_keywords"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
+    query = {}
+    filters_applied = False
 
-        query = {}
-        filters_applied = False
-        
-        if title:
-            query["title"] = {"$regex": title, "$options": "i"}
-            filters_applied = True
-        if author:
-            query["author"] = {"$regex": author, "$options": "i"}
-            filters_applied = True
-        if keyword_input:
-            keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
-            query["keywords"] = {"$in": keywords}
-            filters_applied = True
-        if language_filter != "All":
-            query["language"] = language_filter
-            filters_applied = True
-        if course_filter != "All":
-            query["course"] = course_filter
-            filters_applied = True
-        
-        if filters_applied:
-            books = books_col.find(query).sort("uploaded_at", -1).limit(50)
-        else:
-            books = books_col.find().sort("uploaded_at", -1).limit(5)
-            st.info("Showing latest 5 books. Use search filters to narrow down.")
+    if title:
+        query["title"] = {"$regex": title, "$options": "i"}
+        filters_applied = True
+    if author:
+        query["author"] = {"$regex": author, "$options": "i"}
+        filters_applied = True
+    if keyword_input:
+        keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
+        query["keywords"] = {"$in": keywords}
+        filters_applied = True
+    if language_filter != "All":
+        query["language"] = language_filter
+        filters_applied = True
+    if course_filter != "All":
+        query["course"] = course_filter
+        filters_applied = True
 
+    if filters_applied:
+        books = books_col.find(query).sort("uploaded_at", -1).limit(50)
+    else:
+        books = books_col.find().sort("uploaded_at", -1).limit(5)
+        st.info("Showing latest 5 books. Use search filters to narrow down.")
 
+    missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
     guest_downloads_today = logs_col.count_documents({
@@ -223,17 +213,17 @@ def search_books():
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
-    missing_files = [] 
+
     for book in books:
         with st.expander(book["title"]):
             st.write(f"**Author:** {book.get('author', 'N/A')}")
             st.write(f"**Language:** {book.get('language', 'N/A')}")
             st.write(f"**Course:** {book.get('course', 'Not tagged')}")
             st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
-    
+
             file_id = book.get("file_id")
             failed_to_load = False
-    
+
             if not file_id:
                 st.warning("⚠️ No file associated with this book.")
                 missing_files.append(book["title"])
@@ -245,77 +235,17 @@ def search_books():
                     grid_file = fs.get(file_id)
                     data = grid_file.read()
                     file_name = grid_file.filename
-                    st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf", key=f"download_{book['_id']}")
-                except Exception as e:
-                    st.error(f"❌ Could not retrieve file from storage: {e}")
-                    missing_files.append(book["title"])
-                    failed_to_load = True
-    
-            if failed_to_load and st.session_state.get("user") == "admin":
-                if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
-                    books_col.delete_one({"_id": book["_id"]})
-                    st.warning(f"Deleted book: {book['title']}")
-                    st.rerun()
 
-            user = st.session_state.get("user")
-            can_download = user or guest_downloads_today < 1
+                    user = st.session_state.get("user")
+                    can_download = user or guest_downloads_today < 1
 
-            if st.button("⭐ Bookmark", key=f"fav_{book['_id']}"):
-                if user:
-                    fav_col.update_one(
-                        {"user": user, "book_id": str(book['_id'])},
-                        {"$set": {"timestamp": datetime.utcnow()}},
-                        upsert=True
-                    )
-                    st.success("Bookmarked")
-                else:
-                    st.warning("Login to bookmark books")
-
-            if user == "admin":
-                with st.expander("🛠️ Edit Metadata"):
-                    new_title = st.text_input("Title", value=book["title"], key=f"et_{book['_id']}")
-                    new_author = st.text_input("Author", value=book.get("author", ""), key=f"ea_{book['_id']}")
-                    new_lang = st.text_input("Language", value=book.get("language", ""), key=f"el_{book['_id']}")
-                    new_course = st.text_input("Course", value=book.get("course", ""), key=f"ec_{book['_id']}")
-                    new_keywords = st.text_input("Keywords", value=", ".join(book.get("keywords", [])), key=f"ek_{book['_id']}")
-                    if st.button("💾 Save Changes", key=f"save_{book['_id']}"):
-                        books_col.update_one(
-                            {"_id": book["_id"]},
-                            {"$set": {
-                                "title": new_title,
-                                "author": new_author,
-                                "language": new_lang,
-                                "course": new_course,
-                                "keywords": [k.strip().lower() for k in new_keywords.split(",") if k.strip()]
-                            }}
-                        )
-                        st.success("Updated!")
-                        st.rerun()
-
-                if st.button("🗑️ Delete Book", key=f"del_{book['_id']}"):
-                    fs.delete(book["file_id"])
-                    books_col.delete_one({"_id": book["_id"]})
-                    fav_col.delete_many({"book_id": str(book["_id"])})
-                    logs_col.delete_many({"book": book["title"]})
-                    st.warning("Deleted book")
-                    st.rerun()
-
-            elif can_download:
-                try:
-                    file_id = book.get("file_id")
-                    if not isinstance(file_id, ObjectId):
-                        st.error(f"Invalid file_id: {file_id}")
-                    else:
-                        grid_file = fs.get(file_id)
-                        data = grid_file.read()
-                        file_name = grid_file.filename
-            
+                    if can_download:
                         if st.download_button(
                             label="📄 Download Book",
                             data=data,
                             file_name=file_name,
                             mime="application/pdf",
-                            key=f"dl_{book['_id']}"
+                            key=f"download_{book['_id']}"
                         ):
                             logs_col.insert_one({
                                 "type": "download",
@@ -326,12 +256,19 @@ def search_books():
                                 "language": book.get("language"),
                                 "timestamp": datetime.utcnow()
                             })
+                    else:
+                        st.warning("Guests can download only 1 book per day. Please log in.")
                 except Exception as e:
-                        st.error(f"Could not retrieve file from storage: {e}")
+                    st.error(f"❌ Could not retrieve file from storage: {e}")
+                    missing_files.append(book["title"])
+                    failed_to_load = True
 
-            else:
-                st.warning("Guests can download only 1 book per day. Please log in.")
-             # Summary of missing files (for admins)
+            if failed_to_load and st.session_state.get("user") == "admin":
+                if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
+                    books_col.delete_one({"_id": book["_id"]})
+                    st.warning(f"Deleted book: {book['title']}")
+                    st.rerun()
+
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
