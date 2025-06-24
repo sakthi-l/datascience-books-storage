@@ -292,7 +292,7 @@ def search_books():
                                 "language": book.get("language"),
                                 "timestamp": datetime.utcnow()
                             })
-                    except Exception as e:
+                except Exception as e:
                         st.error(f"Could not retrieve file from storage: {e}")
 
             else:
