@@ -203,9 +203,6 @@ def search_books():
 
     if search_triggered:
         books = books_col.find(query)
-    else:
-        st.info("Showing latest 50 books. Use search filters to narrow down.")
-        books = books_col.find().sort("uploaded_at", -1).limit(50)
 
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
