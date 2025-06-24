@@ -80,16 +80,16 @@ def upload_book():
         language = st.text_input("Language", key="upload_language")
         keywords = st.text_input("Keywords (comma-separated)", key="upload_keywords")
         course_options = [
-            "MAT445 - Probability & Statistics using R", "MAT446R01 - Mathematics for Data Science",
-            "BIN522 - Python for Data Science", "INT413 - RDBMS, SQL & Visualization",
-            "INT531 - Data Mining Techniques", "INT530R01 - Artificial Intelligence & Reasoning",
-            "INT534R01 - Machine Learning", "CSE614R01 - Big Data Mining & Analytics",
-            "INT418 - Predictive Analytics", "OEH014 - Ethics & Data Security",
-            "INT419R01 - Applied Spatial Data Analytics Using R", "ICT601 - Machine Vision",
-            "CSE615 - Deep Learning & Applications", "INT446 - Generative AI with LLMs",
-            "CSE542 - Social Networks & Graph Analysis", "INT442 - Data Visualization Techniques",
-            "INT424 - Algorithmic Trading", "INT426 - Bayesian Data Analysis",
-            "BIN533R01 - Healthcare Data Analytics", "BIN529 - Data Science for Structural Biology",
+            "Probability & Statistics using R", "Mathematics for Data Science",
+            "Python for Data Science", "RDBMS, SQL & Visualization",
+            "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+            "Machine Learning", "Big Data Mining & Analytics",
+            "Predictive Analytics", "Ethics & Data Security",
+            "Applied Spatial Data Analytics Using R", "Machine Vision",
+            "Deep Learning & Applications", "Generative AI with LLMs",
+            "Social Networks & Graph Analysis", "Data Visualization Techniques",
+            "Algorithmic Trading", "Bayesian Data Analysis",
+            "Healthcare Data Analytics", "Data Science for Structural Biology",
             "Other / Not Mapped"
         ]
         course = st.selectbox("Course", course_options, key="upload_course")
