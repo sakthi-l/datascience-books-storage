@@ -193,6 +193,7 @@ def search_books():
             "$in": [re.compile(f"^{re.escape(k)}$", re.IGNORECASE) for k in keywords]
         }
         filters_applied = True
+
     if language_filter != "All":
         query["language"] = language_filter
         filters_applied = True
