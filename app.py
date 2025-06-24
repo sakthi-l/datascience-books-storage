@@ -163,9 +163,22 @@ def search_books():
 
         # Filter out empty values
         languages = [l for l in books_col.distinct("language") if l and l.strip()]
-        courses = [c for c in books_col.distinct("course") if c and c.strip()]
+        course_options = [
+    "Probability & Statistics using R", "Mathematics for Data Science",
+    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+    "Machine Learning", "Big Data Mining & Analytics",
+    "Predictive Analytics", "Ethics & Data Security",
+    "Applied Spatial Data Analytics Using R", "Machine Vision",
+    "Deep Learning & Applications", "Generative AI with LLMs",
+    "Social Networks & Graph Analysis", "Data Visualization Techniques",
+    "Algorithmic Trading", "Bayesian Data Analysis",
+    "Healthcare Data Analytics", "Data Science for Structural Biology",
+    "Other / Not Mapped"
+]
+        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(course_options), key="search_course")
+
         language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
-        course_filter = st.selectbox("Filter by Course", ["All"] + sorted(courses), key="search_course")
 
         col1, col2 = st.columns(2)
         with col1:
