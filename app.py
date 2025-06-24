@@ -222,7 +222,23 @@ def search_books():
             st.write(f"**Language:** {book.get('language', 'N/A')}")
             st.write(f"**Course:** {book.get('course', 'Not tagged')}")
             st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
+            file_id = book.get("file_id")
+            if not file_id:
+                st.warning("⚠️ No file associated with this book.")
+                missing_files.append(book["title"])
+            else:
+                try:
+                    if not isinstance(file_id, ObjectId):
+                        file_id = ObjectId(file_id)
+                    grid_file = fs.get(file_id)
+                    data = grid_file.read()
+                    file_name = grid_file.filename
+                    st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf")
+                except Exception as e:
+                    st.error(f"❌ Could not retrieve file from storage: {e}")
+                    missing_files.append(book["title"])
 
+   
             user = st.session_state.get("user")
             can_download = user or guest_downloads_today < 1
 
@@ -297,6 +313,11 @@ def search_books():
 
             else:
                 st.warning("Guests can download only 1 book per day. Please log in.")
+             # Summary of missing files (for admins)
+            if st.session_state.get("user") == "admin" and missing_files:
+                st.error("⚠️ The following books have missing or invalid files:")
+                for title in missing_files:
+                    st.write(f"- {title}")
 def manage_users():
     st.subheader("👥 Manage Users")
 
