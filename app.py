@@ -189,11 +189,9 @@ def search_books():
         filters_applied = True
     if keyword_input:
         keywords = [k.strip() for k in keyword_input.split(",") if k.strip()]
-        query["keywords"] = {
-            "$in": [re.compile(f"^{re.escape(k)}$", re.IGNORECASE) for k in keywords]
-        }
+        regex_keywords = [re.compile(k, re.IGNORECASE) for k in keywords]
+        query["keywords"] = {"$in": regex_keywords}
         filters_applied = True
-
     if language_filter != "All":
         query["language"] = language_filter
         filters_applied = True
@@ -201,7 +199,7 @@ def search_books():
         query["course"] = course_filter
         filters_applied = True
 
-    if filters_applied:
+    if submitted and filters_applied:
         books = books_col.find(query).sort("uploaded_at", -1).limit(50)
     else:
         books = books_col.find().sort("uploaded_at", -1).limit(5)
