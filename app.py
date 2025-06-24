@@ -151,32 +151,37 @@ def user_dashboard(user):
         for book in books:
             st.write(f"📘 {book['title']} by {book.get('author', 'Unknown')}")
 
+# --- Search Books Update ---
 def search_books():
     st.subheader("🔎 Search Books")
-    with st.expander("🔧 Advanced Search Filters", expanded=True):
-        title = st.text_input("Title", key="search_title")
-        author = st.text_input("Author", key="search_author")
-        keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
 
-        languages = [l for l in books_col.distinct("language") if l and l.strip()]
-        existing_courses = books_col.distinct("course")
-        default_courses = [
-            "Probability & Statistics using R", "Mathematics for Data Science",
-            "Python for Data Science", "RDBMS, SQL & Visualization",
-            "Data Mining Techniques", "Artificial Intelligence & Reasoning",
-            "Machine Learning", "Big Data Mining & Analytics",
-            "Predictive Analytics", "Ethics & Data Security",
-            "Applied Spatial Data Analytics Using R", "Machine Vision",
-            "Deep Learning & Applications", "Generative AI with LLMs",
-            "Social Networks & Graph Analysis", "Data Visualization Techniques",
-            "Algorithmic Trading", "Bayesian Data Analysis",
-            "Healthcare Data Analytics", "Data Science for Structural Biology",
-            "Other / Not Mapped"
-        ]
-        all_courses = sorted(set(default_courses + existing_courses))
+    with st.form("search_form"):
+        with st.expander("🔧 Advanced Search Filters", expanded=True):
+            title = st.text_input("Title", key="search_title")
+            author = st.text_input("Author", key="search_author")
+            keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
 
-        course_filter = st.selectbox("Filter by Course", ["All"] + all_courses, key="search_course")
-        language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
+            languages = [l for l in books_col.distinct("language") if l and l.strip()]
+            existing_courses = books_col.distinct("course")
+            default_courses = [
+                "Probability & Statistics using R", "Mathematics for Data Science",
+                "Python for Data Science", "RDBMS, SQL & Visualization",
+                "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+                "Machine Learning", "Big Data Mining & Analytics",
+                "Predictive Analytics", "Ethics & Data Security",
+                "Applied Spatial Data Analytics Using R", "Machine Vision",
+                "Deep Learning & Applications", "Generative AI with LLMs",
+                "Social Networks & Graph Analysis", "Data Visualization Techniques",
+                "Algorithmic Trading", "Bayesian Data Analysis",
+                "Healthcare Data Analytics", "Data Science for Structural Biology",
+                "Other / Not Mapped"
+            ]
+            all_courses = sorted(set(default_courses + existing_courses))
+
+            course_filter = st.selectbox("Filter by Course", ["All"] + all_courses, key="search_course")
+            language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
+
+        submitted = st.form_submit_button("🔍 Search")
 
     query = {}
     filters_applied = False
@@ -188,9 +193,8 @@ def search_books():
         query["author"] = {"$regex": author, "$options": "i"}
         filters_applied = True
     if keyword_input:
-        keywords = [k.strip() for k in keyword_input.split(",") if k.strip()]
-        regex_keywords = [re.compile(k, re.IGNORECASE) for k in keywords]
-        query["keywords"] = {"$in": regex_keywords}
+        keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
+        query["keywords"] = {"$in": keywords}
         filters_applied = True
     if language_filter != "All":
         query["language"] = language_filter
@@ -201,6 +205,9 @@ def search_books():
 
     if submitted and filters_applied:
         books = books_col.find(query).sort("uploaded_at", -1).limit(50)
+    elif submitted:
+        books = []
+        st.warning("No filters applied. Please enter at least one search filter.")
     else:
         books = books_col.find().sort("uploaded_at", -1).limit(5)
         st.info("Showing latest 5 books. Use search filters to narrow down.")
@@ -263,7 +270,8 @@ def search_books():
                     st.error(f"❌ Could not retrieve file from storage: {e}")
                     missing_files.append(book["title"])
                     failed_to_load = True
-                        # Bookmark button
+
+            # Bookmark button
             user = st.session_state.get("user")
             if user and st.button("⭐ Bookmark", key=f"bookmark_{book['_id']}"):
                 fav_col.update_one(
@@ -272,7 +280,8 @@ def search_books():
                     upsert=True
                 )
                 st.success("Bookmarked")
-            if failed_to_load and st.session_state.get("user") == "admin":
+
+            if failed_to_load and user == "admin":
                 if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
                     books_col.delete_one({"_id": book["_id"]})
                     st.warning(f"Deleted book: {book['title']}")
