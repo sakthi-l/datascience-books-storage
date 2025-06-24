@@ -399,8 +399,6 @@ def bulk_upload_with_gridfs():
 def main():
     st.set_page_config("📚 DS Book Library")
     st.title("📚 DataScience E-Book Library")
-
-    # Always show search section
     search_books()
     st.markdown("---")
     if "user" not in st.session_state:
@@ -438,7 +436,6 @@ def main():
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
-
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
 if __name__ == "__main__":
