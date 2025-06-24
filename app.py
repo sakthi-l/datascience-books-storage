@@ -268,28 +268,33 @@ def search_books():
 
             elif can_download:
                 try:
-                    grid_file = fs.get(book["file_id"])
-                    data = grid_file.read()
-                    file_name = grid_file.filename
+                    file_id = book.get("file_id")
+                    if not isinstance(file_id, ObjectId):
+                        st.error(f"Invalid file_id: {file_id}")
+                    else:
+                        grid_file = fs.get(file_id)
+                        data = grid_file.read()
+                        file_name = grid_file.filename
+            
+                        if st.download_button(
+                            label="📄 Download Book",
+                            data=data,
+                            file_name=file_name,
+                            mime="application/pdf",
+                            key=f"dl_{book['_id']}"
+                        ):
+                            logs_col.insert_one({
+                                "type": "download",
+                                "user": user if user else "guest",
+                                "ip": ip,
+                                "book": book["title"],
+                                "author": book.get("author"),
+                                "language": book.get("language"),
+                                "timestamp": datetime.utcnow()
+                            })
+                    except Exception as e:
+                        st.error(f"Could not retrieve file from storage: {e}")
 
-                    if st.download_button(
-                        label="📄 Download Book",
-                        data=data,
-                        file_name=file_name,
-                        mime="application/pdf",
-                        key=f"dl_{book['_id']}"
-                    ):
-                        logs_col.insert_one({
-                            "type": "download",
-                            "user": user if user else "guest",
-                            "ip": ip,
-                            "book": book["title"],
-                            "author": book.get("author"),
-                            "language": book.get("language"),
-                            "timestamp": datetime.utcnow()
-                        })
-                except Exception as e:
-                    st.error(f"Could not retrieve file from storage: {e}")
             else:
                 st.warning("Guests can download only 1 book per day. Please log in.")
 def manage_users():
