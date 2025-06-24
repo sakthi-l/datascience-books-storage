@@ -403,15 +403,14 @@ def main():
     # Always show search section
     search_books()
     st.markdown("---")
-
-    # Login/Register
     if "user" not in st.session_state:
-        choice = st.radio("Choose:", ["Login", "Register"])
-        if choice == "Login":
-            login_user()
-        else:
-            register_user()
-        st.stop()  # ensure streamlit waits for rerun after login
+        with st.sidebar:
+            choice = st.radio("Choose:", ["Login", "Register"])
+            if choice == "Login":
+                login_user()
+            else:
+                register_user()
+        st.stop() 
 
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
@@ -440,6 +439,7 @@ def main():
         st.session_state.clear()
         st.rerun()
 
-
+    if "user" not in st.session_state:
+        st.markdown("\n---\n💡 **Login to avail more features**")
 if __name__ == "__main__":
     main()
