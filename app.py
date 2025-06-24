@@ -188,21 +188,32 @@ def search_books():
                         del st.session_state[key]
                 st.rerun()
 
-    query = {}
-    if title:
-        query["title"] = {"$regex": title, "$options": "i"}
-    if author:
-        query["author"] = {"$regex": author, "$options": "i"}
-    if keyword_input:
-        keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
-        query["keywords"] = {"$in": keywords}
-    if language_filter != "All":
-        query["language"] = language_filter
-    if course_filter != "All":
-        query["course"] = course_filter
+        query = {}
+        filters_applied = False
+        
+        if title:
+            query["title"] = {"$regex": title, "$options": "i"}
+            filters_applied = True
+        if author:
+            query["author"] = {"$regex": author, "$options": "i"}
+            filters_applied = True
+        if keyword_input:
+            keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
+            query["keywords"] = {"$in": keywords}
+            filters_applied = True
+        if language_filter != "All":
+            query["language"] = language_filter
+            filters_applied = True
+        if course_filter != "All":
+            query["course"] = course_filter
+            filters_applied = True
+        
+        if filters_applied:
+            books = books_col.find(query).sort("uploaded_at", -1).limit(50)
+        else:
+            books = books_col.find().sort("uploaded_at", -1).limit(5)
+            st.info("Showing latest 5 books. Use search filters to narrow down.")
 
-    if search_triggered:
-        books = books_col.find(query)
 
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
