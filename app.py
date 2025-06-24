@@ -216,29 +216,39 @@ def search_books():
         "timestamp": {"$gte": today_start}
     })
     missing_files = [] 
-    for book in books:
-        with st.expander(f"{book['title']}"):
-            st.write(f"**Author:** {book.get('author', 'N/A')}")
-            st.write(f"**Language:** {book.get('language', 'N/A')}")
-            st.write(f"**Course:** {book.get('course', 'Not tagged')}")
-            st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
-            file_id = book.get("file_id")
-            if not file_id:
-                st.warning("⚠️ No file associated with this book.")
-                missing_files.append(book["title"])
-            else:
-                try:
-                    if not isinstance(file_id, ObjectId):
-                        file_id = ObjectId(file_id)
-                    grid_file = fs.get(file_id)
-                    data = grid_file.read()
-                    file_name = grid_file.filename
-                    st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf")
-                except Exception as e:
-                    st.error(f"❌ Could not retrieve file from storage: {e}")
-                    missing_files.append(book["title"])
+ for book in books:
+    with st.expander(book["title"]):
+        st.write(f"**Author:** {book.get('author', 'N/A')}")
+        st.write(f"**Language:** {book.get('language', 'N/A')}")
+        st.write(f"**Course:** {book.get('course', 'Not tagged')}")
+        st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
 
-   
+        file_id = book.get("file_id")
+        failed_to_load = False
+
+        if not file_id:
+            st.warning("⚠️ No file associated with this book.")
+            missing_files.append(book["title"])
+            failed_to_load = True
+        else:
+            try:
+                if not isinstance(file_id, ObjectId):
+                    file_id = ObjectId(file_id)
+                grid_file = fs.get(file_id)
+                data = grid_file.read()
+                file_name = grid_file.filename
+                st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf")
+            except Exception as e:
+                st.error(f"❌ Could not retrieve file from storage: {e}")
+                missing_files.append(book["title"])
+                failed_to_load = True
+
+        if failed_to_load and st.session_state.get("user") == "admin":
+            if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
+                books_col.delete_one({"_id": book["_id"]})
+                st.warning(f"Deleted book: {book['title']}")
+                st.rerun()
+
             user = st.session_state.get("user")
             can_download = user or guest_downloads_today < 1
 
