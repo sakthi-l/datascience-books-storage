@@ -379,8 +379,8 @@ def bulk_upload_with_gridfs():
 
 # --- Main ---
 def main():
-    st.set_page_config("📚 PDF Book Library")
-    st.title("📚 PDF Book Library")
+    st.set_page_config("📚 DS Book Library")
+    st.title("📚 DataScience E-Book Library")
 
     # Always show search section
     search_books()
