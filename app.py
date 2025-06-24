@@ -237,7 +237,7 @@ def search_books():
                     grid_file = fs.get(file_id)
                     data = grid_file.read()
                     file_name = grid_file.filename
-                    st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf")
+                    st.download_button("📄 Download Book", data=data, file_name=file_name, mime="application/pdf", key=f"download_{book['_id']}")
                 except Exception as e:
                     st.error(f"❌ Could not retrieve file from storage: {e}")
                     missing_files.append(book["title"])
