@@ -203,6 +203,7 @@ def search_books():
 
     if search_triggered:
         books = books_col.find(query)
+        missing_files = [] 
     else:
         st.info("Showing latest 50 books. Use search filters to narrow down.")
         books = books_col.find().sort("uploaded_at", -1).limit(50)
