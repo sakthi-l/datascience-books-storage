@@ -145,7 +145,7 @@ def user_dashboard(user):
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
     if favs:
-        st.write("### ⭐ Bookmarked Books")
+        st.write("⭐ Bookmarked Books")
         book_ids = [ObjectId(f['book_id']) for f in favs]
         books = books_col.find({"_id": {"$in": book_ids}})
         for book in books:
@@ -262,7 +262,15 @@ def search_books():
                     st.error(f"❌ Could not retrieve file from storage: {e}")
                     missing_files.append(book["title"])
                     failed_to_load = True
-
+                        # Bookmark button
+            user = st.session_state.get("user")
+            if user and st.button("⭐ Bookmark", key=f"bookmark_{book['_id']}"):
+                fav_col.update_one(
+                    {"user": user, "book_id": str(book['_id'])},
+                    {"$set": {"timestamp": datetime.utcnow()}},
+                    upsert=True
+                )
+                st.success("Bookmarked")
             if failed_to_load and st.session_state.get("user") == "admin":
                 if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
                     books_col.delete_one({"_id": book["_id"]})
