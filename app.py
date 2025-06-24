@@ -314,10 +314,10 @@ def search_books():
             else:
                 st.warning("Guests can download only 1 book per day. Please log in.")
              # Summary of missing files (for admins)
-            if st.session_state.get("user") == "admin" and missing_files:
-                st.error("⚠️ The following books have missing or invalid files:")
-                for title in missing_files:
-                    st.write(f"- {title}")
+    if st.session_state.get("user") == "admin" and missing_files:
+        st.error("⚠️ The following books have missing or invalid files:")
+        for title in missing_files:
+            st.write(f"- {title}")
 def manage_users():
     st.subheader("👥 Manage Users")
 
