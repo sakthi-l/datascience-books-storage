@@ -203,7 +203,6 @@ def search_books():
 
     if search_triggered:
         books = books_col.find(query)
-        missing_files = [] 
     else:
         st.info("Showing latest 50 books. Use search filters to narrow down.")
         books = books_col.find().sort("uploaded_at", -1).limit(50)
@@ -216,7 +215,7 @@ def search_books():
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
-
+    missing_files = [] 
     for book in books:
         with st.expander(f"{book['title']}"):
             st.write(f"**Author:** {book.get('author', 'N/A')}")
