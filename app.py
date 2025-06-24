@@ -60,7 +60,7 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("Logged in as Admin")
-            st.rerun()  # ✅ use st.rerun for Streamlit ≥1.27
+            st.rerun()
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
@@ -70,7 +70,7 @@ def login_user():
             else:
                 st.error("Invalid or unverified credentials")
 
-# --- Upload Book (Admin Only) ---
+# --- Update Book Upload ---
 def upload_book():
     st.subheader("📄 Upload Book")
     uploaded_file = st.file_uploader("Upload PDF", type="pdf", key="upload_pdf")
@@ -98,14 +98,12 @@ def upload_book():
             if len(data) == 0:
                 st.error("File is empty")
                 return
-            data = uploaded_file.read()
             file_id = fs.put(data, filename=uploaded_file.name)
-            
             books_col.insert_one({
                 "title": title,
                 "author": author,
                 "language": language,
-                "course": course,
+                "course": course if course else "Other / Not Mapped",
                 "keywords": [k.strip().lower() for k in keywords.split(",") if k.strip()],
                 "file_id": file_id,
                 "file_name": uploaded_file.name,
