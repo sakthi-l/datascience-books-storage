@@ -8,7 +8,7 @@ import plotly.express as px
 from bson import ObjectId
 import socket
 import gridfs
-
+import re
 # --- MongoDB Setup ---
 db_username = st.secrets["mongodb"]["username"]
 db_password = st.secrets["mongodb"]["password"]
@@ -188,8 +188,10 @@ def search_books():
         query["author"] = {"$regex": author, "$options": "i"}
         filters_applied = True
     if keyword_input:
-        keywords = [k.strip().lower() for k in keyword_input.split(",") if k.strip()]
-        query["keywords"] = {"$in": keywords}
+        keywords = [k.strip() for k in keyword_input.split(",") if k.strip()]
+        query["keywords"] = {
+            "$in": [re.compile(f"^{re.escape(k)}$", re.IGNORECASE) for k in keywords]
+        }
         filters_applied = True
     if language_filter != "All":
         query["language"] = language_filter
