@@ -380,6 +380,16 @@ def bulk_upload_with_gridfs():
 
             file_id = fs.put(file_data, filename=file_name)
 
+            # Check if the book already exists (by title and file_name)
+            existing = books_col.find_one({
+                "title": row.get("title", ""),
+                "file_name": file_name
+            })
+            if existing:
+                st.warning(f"Skipping duplicate: {row.get('title')} already exists.")
+                continue
+            
+            # Insert only if not a duplicate
             books_col.insert_one({
                 "title": row.get("title", ""),
                 "author": row.get("author", ""),
@@ -390,6 +400,7 @@ def bulk_upload_with_gridfs():
                 "file_id": file_id,
                 "uploaded_at": datetime.utcnow()
             })
+
             count += 1
 
         st.success(f"{count} books uploaded successfully via GridFS!")
