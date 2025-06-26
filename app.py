@@ -281,7 +281,7 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
-            if failed_to_load and user == "admin":
+            if user == "admin":
                 if st.button(f"🗑️ Delete '{book['title']}'", key=f"delete_{book['_id']}"):
                     books_col.delete_one({"_id": book["_id"]})
                     st.warning(f"Deleted book: {book['title']}")
