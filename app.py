@@ -205,13 +205,8 @@ def search_books():
 
     if submitted and filters_applied:
         books = books_col.find(query).sort("uploaded_at", -1).limit(50)
-    elif submitted:
-        books = []
-        st.warning("No filters applied. Please enter at least one search filter.")
     else:
-        books = books_col.find().sort("uploaded_at", -1).limit(5)
-        st.info("Showing latest 5 books. Use search filters to narrow down.")
-
+         st.warning("No filters applied. Please enter at least one search filter.")
     missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
