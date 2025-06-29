@@ -214,7 +214,7 @@ def search_books():
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
-
+    books=[]
     for book in books:
         with st.expander(book["title"]):
             st.write(f"**Author:** {book.get('author', 'N/A')}")
