@@ -178,8 +178,8 @@ def search_books():
             ]
             all_courses = sorted(set(default_courses + existing_courses))
 
-            course_filter = st.selectbox("Filter by Course", ["All"] + all_courses, key="search_course")
-            language_filter = st.selectbox("Filter by Language", ["All"] + sorted(languages), key="search_language")
+            course_filter = st.selectbox("Course", ["All"] + all_courses, key="search_course")
+            language_filter = st.selectbox("Language", ["All"] + sorted(languages), key="search_language")
 
         submitted = st.form_submit_button("🔍 Search")
 
