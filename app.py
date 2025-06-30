@@ -550,7 +550,7 @@ def main():
             "👥 Manage Users",
             "📝 Edit Book Metadata",
             "➕ Add Course",
-            "⚠️ Clear Database"
+            "⚠️ Clear Collections"
         ])
 
         if admin_tab == "📤 Upload Book":
@@ -578,7 +578,5 @@ def main():
 
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
-
-
 if __name__ == "__main__":
     main()
