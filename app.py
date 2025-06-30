@@ -343,7 +343,65 @@ def manage_users():
                             fav_col.delete_many({"user": user["username"]})
                             st.warning("User deleted")
                             st.rerun()
+def edit_book_metadata():
+    st.subheader("📝 Edit Book Metadata")
+    books = list(books_col.find())
+    if not books:
+        st.warning("No books available.")
+        return
 
+    book_titles = [f"{b['title']} ({b.get('author', 'Unknown')})" for b in books]
+    selected = st.selectbox("Select Book", book_titles)
+    book = books[book_titles.index(selected)]
+
+    title = st.text_input("Title", value=book["title"])
+    author = st.text_input("Author", value=book.get("author", ""))
+    language = st.text_input("Language", value=book.get("language", ""))
+    keywords = st.text_input("Keywords (comma-separated)", value=", ".join(book.get("keywords", [])))
+
+    # Dynamically fetch courses from DB
+    existing_courses = books_col.distinct("course")
+    course = st.selectbox("Course", sorted(existing_courses), index=sorted(existing_courses).index(book.get("course", "Other / Not Mapped")) if book.get("course") in existing_courses else 0)
+
+    if st.button("Update Metadata"):
+        books_col.update_one(
+            {"_id": book["_id"]},
+            {"$set": {
+                "title": title.strip(),
+                "author": author.strip(),
+                "language": language.strip(),
+                "keywords": [k.strip().lower() for k in keywords.split(",")],
+                "course": course
+            }}
+        )
+        st.success("✅ Book metadata updated!")
+def add_new_course():
+    st.subheader("➕ Add New Course")
+
+    new_course = st.text_input("Enter course name")
+
+    if st.button("Add Course"):
+        new_course = new_course.strip()
+        if not new_course:
+            st.warning("Course name cannot be empty.")
+            return
+        # Use books_col to track course list for now
+        existing_courses = books_col.distinct("course")
+        if new_course in existing_courses:
+            st.warning("Course already exists.")
+        else:
+            # Dummy insert to record course without real book
+            books_col.insert_one({
+                "title": "[Dummy Course Entry]",
+                "author": "",
+                "language": "",
+                "course": new_course,
+                "keywords": [],
+                "file_name": "",
+                "file_id": "",
+                "uploaded_at": datetime.utcnow()
+            })
+            st.success(f"Course '{new_course}' added!")
 
 def bulk_upload_with_gridfs():
     st.subheader("📥 Bulk Upload Books via CSV + PDF")
@@ -423,9 +481,10 @@ def main():
             "📤 Upload Book",
             "📥 Bulk Upload",
             "📊 Analytics",
-            "👥 Manage Users"
+            "👥 Manage Users",
+            "📝 Edit Book Metadata",
+            "➕ Add Course"
         ])
-
         if admin_tab == "📤 Upload Book":
             upload_book()
         elif admin_tab == "📥 Bulk Upload":
