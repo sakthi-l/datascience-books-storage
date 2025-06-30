@@ -202,9 +202,12 @@ def search_books():
     if course_filter != "All":
         query["course"] = course_filter
         filters_applied = True
-
-    if submitted and filters_applied:
-        books = books_col.find(query).sort("uploaded_at", -1).limit(50)
+    books = []
+    if submitted:
+        if filters_applied:
+            books = list(books_col.find(query).sort("uploaded_at", -1).limit(50))
+        else:
+            books = list(books_col.find().sort("uploaded_at", -1).limit(3))
     missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
@@ -214,7 +217,6 @@ def search_books():
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
-    books=[]
     for book in books:
         with st.expander(book["title"]):
             st.write(f"**Author:** {book.get('author', 'N/A')}")
