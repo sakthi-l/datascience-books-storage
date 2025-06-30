@@ -278,26 +278,34 @@ def search_books():
 
             if user == "admin":
                 confirm_key = f"confirm_delete_{str(book['_id'])}"
-                delete_btn_key = f"delete_button_{str(book['_id'])}"
+                delete_key = f"delete_button_{str(book['_id'])}"
             
-                confirm_delete = st.checkbox(
-                    f"⚠️ Confirm delete '{book['title']}'", key=confirm_key
-                )
+                confirm_delete = st.checkbox(f"✅ Confirm delete: '{book['title']}'", key=confirm_key)
             
                 if confirm_delete:
-                    if st.button(f"🗑️ Delete '{book['title']}'", key=delete_btn_key):
+                    if st.button(f"🗑️ Delete '{book['title']}'", key=delete_key):
                         try:
+                            # Delete the file from GridFS (if exists)
                             file_id = book.get("file_id")
                             if file_id:
-                                if not isinstance(file_id, ObjectId):
-                                    file_id = ObjectId(file_id)
-                                fs.delete(file_id)
+                                try:
+                                    if not isinstance(file_id, ObjectId):
+                                        file_id = ObjectId(file_id)
+                                    fs.delete(file_id)
+                                except Exception as file_error:
+                                    st.warning(f"⚠️ File deletion skipped: {file_error}")
             
+                            # Delete the book metadata
                             books_col.delete_one({"_id": book["_id"]})
-                            st.success(f"✅ Deleted book: {book['title']}")
+            
+                            # Remove any favorites/logs for the book (optional)
+                            fav_col.delete_many({"book_id": str(book["_id"])})
+                            logs_col.delete_many({"book": book["title"]})
+            
+                            st.success(f"✅ Book '{book['title']}' deleted successfully.")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"❌ Failed to delete book: {e}")
+                            st.error(f"❌ Failed to delete: {e}")
 
     
     
