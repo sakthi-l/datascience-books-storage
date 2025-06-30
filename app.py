@@ -495,8 +495,12 @@ def main():
             admin_dashboard()
         elif admin_tab == "👥 Manage Users":
             manage_users()
-    else:
-        user_dashboard(user)
+        elif admin_tab == "📝 Edit Book Metadata":
+            edit_book_metadata()
+        elif admin_tab == "➕ Add Course":
+            add_new_course()
+        else:
+            user_dashboard(user)
 
     if st.button("Logout"):
         st.session_state.clear()
