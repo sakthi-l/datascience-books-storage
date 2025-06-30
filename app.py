@@ -289,11 +289,13 @@ def search_books():
                                     file_id = ObjectId(file_id)
                                 fs.delete(file_id)  # Delete PDF from GridFS
             
-                            books_col.delete_one({"_id": book["_id"]})  # Delete metadata document
-                            st.warning(f"Deleted book: {book['title']}")
-                            st.experimental_rerun()  # Refresh app
+                            books_col.delete_one({"_id": book["_id"]})  # Delete metadata
+            
+                            st.warning(f"✅ Deleted book: {book['title']}")
+                            st.rerun()
                         except Exception as e:
-                            st.error(f"Failed to delete book: {e}")
+                            st.error(f"❌ Failed to delete book: {e}")
+
 
 
 
