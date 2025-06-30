@@ -9,15 +9,15 @@ from bson import ObjectId
 import socket
 import gridfs
 import re
+
 # --- MongoDB Setup ---
-db_username = st.secrets["mongodb"]["username"]
-db_password = st.secrets["mongodb"]["password"]
-db_cluster = st.secrets["mongodb"]["cluster"]
-db_name = st.secrets["mongodb"]["appname"]
+db_password = st.secrets["mongodb"]["password"]  # only password in secrets
 admin_user = st.secrets["mongodb"]["admin_user"]
 admin_pass = st.secrets["mongodb"]["admin_pass"]
 
-client = MongoClient(f"mongodb+srv://{db_username}:{db_password}@{db_cluster}/?retryWrites=true&w=majority&appName={db_name}")
+mongo_uri = f"mongodb+srv://DATASCIENCE:{db_password}@datasciencebooks.nvf4l48.mongodb.net/?retryWrites=true&w=majority&appName=Datasciencebooks"
+
+client = MongoClient(mongo_uri)
 db = client["library"]
 books_col = db["books"]
 users_col = db["users"]
@@ -25,7 +25,7 @@ logs_col = db["logs"]
 fav_col = db["favorites"]
 fs = gridfs.GridFS(db)
 
-# --- Helper to get user IP ---
+# --- Utility Functions ---
 def get_ip():
     try:
         hostname = socket.gethostname()
@@ -508,8 +508,12 @@ def bulk_upload_with_gridfs():
 def main():
     st.set_page_config("📚 DS Book Library")
     st.title("📚 DataScience E-Book Library")
+
+    # --- Search Section (Public) ---
     search_books()
     st.markdown("---")
+
+    # --- Login/Register Sidebar ---
     if "user" not in st.session_state:
         with st.sidebar:
             choice = st.radio("Choose:", ["Login", "Register"])
@@ -522,6 +526,7 @@ def main():
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
 
+    # --- Admin Panel ---
     if user == "admin":
         st.sidebar.markdown("## 🔐 Admin Controls")
         admin_tab = st.sidebar.radio("🛠️ Admin Panel", [
@@ -546,11 +551,16 @@ def main():
             add_new_course()
         else:
             user_dashboard(user)
+    else:
+        user_dashboard(user)
 
+    # --- Logout ---
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
+
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
+
 if __name__ == "__main__":
     main()
