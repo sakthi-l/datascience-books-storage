@@ -438,7 +438,7 @@ def bulk_upload_with_gridfs():
         st.warning("Please upload a CSV file to continue.")
         return
 
-    # Reset file pointer before reading
+    # Reset pointer to ensure reading works
     csv_file.seek(0)
 
     try:
@@ -458,6 +458,7 @@ def bulk_upload_with_gridfs():
         st.error("The CSV file contains no data. Please upload a valid CSV file.")
         return
 
+    # Read all PDFs into a dictionary
     pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
 
     count = 0
@@ -467,20 +468,27 @@ def bulk_upload_with_gridfs():
         file_data = pdf_lookup.get(file_name)
 
         if not file_data:
-            st.warning(f"Skipping '{row.get('title', 'Unknown')}' - no matching PDF file found.")
+            st.warning(f"⚠️ Skipping '{row.get('title', 'Unknown')}' - No matching PDF file found.")
             continue
 
-        file_id = fs.put(file_data, filename=file_name)
+        # Attempt to store the PDF in GridFS
+        try:
+            file_id = fs.put(file_data, filename=file_name)
+        except Exception as e:
+            st.error(f"❌ Failed to upload '{file_name}': {e}")
+            continue
 
-        # Check if the book already exists (by title and file_name)
+        # Skip if the book already exists
         existing = books_col.find_one({
             "title": row.get("title", ""),
             "file_name": file_name
         })
+
         if existing:
-            st.warning(f"Skipping duplicate: {row.get('title')} already exists.")
+            st.warning(f"⚠️ Skipping duplicate: '{row.get('title')}' already exists.")
             continue
 
+        # Insert metadata into MongoDB
         books_col.insert_one({
             "title": row.get("title", ""),
             "author": row.get("author", ""),
@@ -494,7 +502,7 @@ def bulk_upload_with_gridfs():
 
         count += 1
 
-    st.success(f"{count} books uploaded successfully via GridFS!")
+    st.success(f"✅ {count} book(s) uploaded successfully via GridFS!")
 
 # --- Main ---
 def main():
