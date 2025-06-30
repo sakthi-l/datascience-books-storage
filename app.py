@@ -503,17 +503,32 @@ def bulk_upload_with_gridfs():
         count += 1
 
     st.success(f"✅ {count} book(s) uploaded successfully via GridFS!")
+def clear_collections():
+    st.subheader("⚠️ Clear All Collections (Admin Only)")
+
+    confirm = st.text_input("Type 'CONFIRM' to delete all data in collections", key="confirm_clear_collections")
+    clear_btn = st.button("Clear All Collections")
+
+    if clear_btn:
+        if confirm == "CONFIRM":
+            collections = db.list_collection_names()
+            for coll_name in collections:
+                db[coll_name].delete_many({})
+            st.success("✅ All collections cleared!")
+            st.experimental_rerun()
+        else:
+            st.error("❌ You must type 'CONFIRM' exactly to clear the collections.")
 
 # --- Main ---
 def main():
     st.set_page_config("📚 DS Book Library")
     st.title("📚 DataScience E-Book Library")
 
-    # --- Search Section (Public) ---
+    # Search section accessible to everyone
     search_books()
     st.markdown("---")
 
-    # --- Login/Register Sidebar ---
+    # Login/Register sidebar for unauthenticated users
     if "user" not in st.session_state:
         with st.sidebar:
             choice = st.radio("Choose:", ["Login", "Register"])
@@ -521,12 +536,11 @@ def main():
                 login_user()
             else:
                 register_user()
-        st.stop() 
+        st.stop()
 
     user = st.session_state["user"]
     st.success(f"Logged in as: {user}")
 
-    # --- Admin Panel ---
     if user == "admin":
         st.sidebar.markdown("## 🔐 Admin Controls")
         admin_tab = st.sidebar.radio("🛠️ Admin Panel", [
@@ -535,8 +549,10 @@ def main():
             "📊 Analytics",
             "👥 Manage Users",
             "📝 Edit Book Metadata",
-            "➕ Add Course"
+            "➕ Add Course",
+            "⚠️ Clear Database"
         ])
+
         if admin_tab == "📤 Upload Book":
             upload_book()
         elif admin_tab == "📥 Bulk Upload":
@@ -549,18 +565,20 @@ def main():
             edit_book_metadata()
         elif admin_tab == "➕ Add Course":
             add_new_course()
+        elif admin_tab == "⚠️ Clear Collections":
+            clear_collections()
         else:
             user_dashboard(user)
     else:
         user_dashboard(user)
 
-    # --- Logout ---
     if st.button("Logout"):
         st.session_state.clear()
-        st.rerun()
+        st.experimental_rerun()
 
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
+
 
 if __name__ == "__main__":
     main()
