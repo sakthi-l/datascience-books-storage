@@ -277,24 +277,32 @@ def search_books():
                 st.success("Bookmarked")
 
             if user == "admin":
-                confirm_key = f"confirm_delete_{book['_id']}"
-                delete_key = f"delete_{book['_id']}"
-            
-                if st.checkbox(f"Confirm delete '{book['title']}'", key=confirm_key):
-                    if st.button(f"🗑️ Delete '{book['title']}'", key=delete_key):
-                        try:
-                            file_id = book.get("file_id")
-                            if file_id:
-                                if not isinstance(file_id, ObjectId):
-                                    file_id = ObjectId(file_id)
-                                fs.delete(file_id)  # Delete PDF from GridFS
-            
-                            books_col.delete_one({"_id": book["_id"]})  # Delete metadata
-            
-                            st.warning(f"✅ Deleted book: {book['title']}")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Failed to delete book: {e}")
+            confirm_key = f"confirm_delete_{str(book['_id'])}"
+            delete_btn_key = f"delete_button_{str(book['_id'])}"
+
+            if confirm_key not in st.session_state:
+                st.session_state[confirm_key] = False
+
+            st.session_state[confirm_key] = st.checkbox(
+                f"⚠️ Confirm delete '{book['title']}'", key=confirm_key)
+
+            if st.session_state[confirm_key]:
+                if st.button(f"🗑️ Delete '{book['title']}'", key=delete_btn_key):
+                    try:
+                        # Delete file from GridFS
+                        file_id = book.get("file_id")
+                        if file_id:
+                            if not isinstance(file_id, ObjectId):
+                                file_id = ObjectId(file_id)
+                            fs.delete(file_id)
+
+                        # Delete metadata
+                        books_col.delete_one({"_id": book["_id"]})
+
+                        st.success(f"✅ Deleted book: {book['title']}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to delete book: {e}")
 
 
 
