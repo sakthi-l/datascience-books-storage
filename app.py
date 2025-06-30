@@ -420,7 +420,7 @@ def bulk_upload_with_gridfs():
     pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
 
     if csv_file:
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file, encoding='utf-8', errors='replace')
         count = 0
 
         for _, row in df.iterrows():
