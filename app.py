@@ -417,49 +417,67 @@ def bulk_upload_with_gridfs():
     csv_file = st.file_uploader("Upload Metadata CSV", type="csv", key="bulk_csv_gridfs")
     pdf_files = st.file_uploader("Upload PDF Files", type="pdf", accept_multiple_files=True, key="bulk_pdfs_gridfs")
 
-    pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
+    if csv_file is None:
+        st.warning("Please upload a CSV file to continue.")
+        return
+
+    # Reset file pointer before reading
+    csv_file.seek(0)
 
     try:
         df = pd.read_csv(csv_file, encoding='utf-8')
     except UnicodeDecodeError:
-        df = pd.read_csv(csv_file, encoding='ISO-8859-1')
+        csv_file.seek(0)
+        try:
+            df = pd.read_csv(csv_file, encoding='ISO-8859-1')
+        except pd.errors.EmptyDataError:
+            st.error("The uploaded CSV file is empty or invalid. Please upload a valid CSV file.")
+            return
+    except pd.errors.EmptyDataError:
+        st.error("The uploaded CSV file is empty or invalid. Please upload a valid CSV file.")
+        return
 
-        count=0
-        for _, row in df.iterrows():
-            file_name = row.get("file_name")
-            file_data = pdf_lookup.get(file_name)
+    if df.empty:
+        st.error("The CSV file contains no data. Please upload a valid CSV file.")
+        return
 
-            if not file_data:
-                st.warning(f"Skipping '{row.get('title', 'Unknown')}' - no matching PDF file found.")
-                continue
+    pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
 
-            file_id = fs.put(file_data, filename=file_name)
+    count = 0
 
-            # Check if the book already exists (by title and file_name)
-            existing = books_col.find_one({
-                "title": row.get("title", ""),
-                "file_name": file_name
-            })
-            if existing:
-                st.warning(f"Skipping duplicate: {row.get('title')} already exists.")
-                continue
-            
-            # Insert only if not a duplicate
-            books_col.insert_one({
-                "title": row.get("title", ""),
-                "author": row.get("author", ""),
-                "language": row.get("language", ""),
-                "course": row.get("course", ""),
-                "keywords": [k.strip().lower() for k in str(row.get("keywords", "")).split(",")],
-                "file_name": file_name,
-                "file_id": file_id,
-                "uploaded_at": datetime.utcnow()
-            })
+    for _, row in df.iterrows():
+        file_name = row.get("file_name")
+        file_data = pdf_lookup.get(file_name)
 
-            count += 1
+        if not file_data:
+            st.warning(f"Skipping '{row.get('title', 'Unknown')}' - no matching PDF file found.")
+            continue
 
-        st.success(f"{count} books uploaded successfully via GridFS!")
+        file_id = fs.put(file_data, filename=file_name)
 
+        # Check if the book already exists (by title and file_name)
+        existing = books_col.find_one({
+            "title": row.get("title", ""),
+            "file_name": file_name
+        })
+        if existing:
+            st.warning(f"Skipping duplicate: {row.get('title')} already exists.")
+            continue
+
+        books_col.insert_one({
+            "title": row.get("title", ""),
+            "author": row.get("author", ""),
+            "language": row.get("language", ""),
+            "course": row.get("course", ""),
+            "keywords": [k.strip().lower() for k in str(row.get("keywords", "")).split(",")],
+            "file_name": file_name,
+            "file_id": file_id,
+            "uploaded_at": datetime.utcnow()
+        })
+
+        count += 1
+
+    st.success(f"{count} books uploaded successfully via GridFS!")
 
 # --- Main ---
 def main():
