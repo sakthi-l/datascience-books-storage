@@ -276,7 +276,7 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
-           if user == "admin":
+            if user == "admin":
                 confirm_key = f"confirm_delete_{str(book['_id'])}"
                 delete_btn_key = f"delete_button_{str(book['_id'])}"
             
@@ -309,7 +309,7 @@ def search_books():
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error during deletion: {e}")
-    
+        
     
         if st.session_state.get("user") == "admin" and missing_files:
             st.error("⚠️ The following books have missing or invalid files:")
