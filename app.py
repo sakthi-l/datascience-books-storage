@@ -278,10 +278,9 @@ def search_books():
 
             if user == "admin":
                 with st.form(f"delete_form_{book['_id']}"):
-                    confirm = st.checkbox(f"⚠️ Confirm deletion of '{book['title']}'", key=f"confirm_{book['_id']}")
                     delete = st.form_submit_button(f"🗑️ Delete '{book['title']}'")
             
-                    if confirm and delete:
+                    if delete:
                         try:
                             file_id = book.get("file_id")
                             if file_id:
@@ -292,10 +291,11 @@ def search_books():
                             fav_col.delete_many({"book_id": str(book["_id"])})
                             logs_col.delete_many({"book": book["title"]})
             
-                            st.success(f"✅ Deleted '{book['title']}'")
+                            st.success(f"✅ Successfully deleted '{book['title']}'")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"❌ Deletion failed: {e}")
+                            st.error(f"❌ Error during deletion: {e}")
+
 
     
         if st.session_state.get("user") == "admin" and missing_files:
