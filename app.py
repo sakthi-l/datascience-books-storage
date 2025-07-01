@@ -257,25 +257,17 @@ def search_books():
                     current_user = st.session_state.get("user", None)
                     can_download = current_user or guest_downloads_today < 1
                     if can_download:
-                        downloaded = st.download_button(
-                            label="📄 Download Book",
-                            data=data,
-                            file_name=file_name,
-                            mime="application/pdf",
-                            key=f"download_{safe_key(book['_id'])}"
-                        )
-                    
-                        if downloaded:
-                            logs_col.insert_one({
-                                "type": "download",
-                                "user": current_user if current_user else "guest",
-                                "ip": ip,
-                                "book": book["title"],
-                                "author": book.get("author"),
-                                "language": book.get("language"),
-                                "timestamp": datetime.utcnow()
-                            })
-                            st.success(f"✅ Download logged for {current_user}")
+                        st.download_button(label="📄 Download Book",data=data,file_name=file_name,mime="application/pdf",key=f"download_{safe_key(book['_id'])}")# Always log the download here (assuming user intends to download)
+                        logs_col.insert_one({
+                            "type": "download",
+                            "user": current_user if current_user else "guest",
+                            "ip": ip,
+                            "book": book["title"],
+                            "author": book.get("author"),
+                            "language": book.get("language"),
+                            "timestamp": datetime.utcnow()
+                        })
+
                     else:
                         st.warning("Guests can download only 1 book per day. Please log in.")
 
