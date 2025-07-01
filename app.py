@@ -42,7 +42,7 @@ def safe_key(raw_key):
 # --- Registration ---
 def register_user():
     st.subheader("🌽 Register")
-    username = st.text_input("Username", key="reg_username")
+    username = st.text_input("Username", key="reg_username").strip().lower()
     password = st.text_input("Password", type="password", key="reg_password")
     if st.button("Register"):
         if users_col.find_one({"username": username}):
@@ -60,7 +60,7 @@ def register_user():
 # --- Login ---
 def login_user():
     st.subheader("🔐 Login")
-    username = st.text_input("Username", key="login_username")
+    username = st.text_input("Username", key="login_username").strip().lower()
     password = st.text_input("Password", type="password", key="login_password")
     if st.button("Login"):
         if username == admin_user and password == admin_pass:
@@ -145,6 +145,7 @@ def admin_dashboard():
 def user_dashboard(user):
     st.subheader("📊 Your Dashboard")
 
+    user = user.lower()
     logs = list(logs_col.find({"user": user}))
     favs = list(fav_col.find({"user": user}))
 
@@ -162,6 +163,7 @@ def user_dashboard(user):
         books = books_col.find({"_id": {"$in": book_ids}})
         for book in books:
             st.write(f"📘 {book['title']} by {book.get('author', 'Unknown')}")
+
 
 # --- Search Books Update ---
 def search_books():
@@ -255,18 +257,18 @@ def search_books():
                     file_name = grid_file.filename
 
                     current_user = st.session_state.get("user", None)
-                    can_download = current_user or guest_downloads_today < 1
-                    if can_download:
-                        st.download_button(label="📄 Download Book",data=data,file_name=file_name,mime="application/pdf",key=f"download_{safe_key(book['_id'])}")# Always log the download here (assuming user intends to download)
+                    downloaded= current_user or guest_downloads_today < 1
+                    if downloaded:
                         logs_col.insert_one({
                             "type": "download",
-                            "user": current_user if current_user else "guest",
+                            "user": current_user.lower() if current_user else "guest",
                             "ip": ip,
                             "book": book["title"],
                             "author": book.get("author"),
                             "language": book.get("language"),
                             "timestamp": datetime.utcnow()
                         })
+
 
                     else:
                         st.warning("Guests can download only 1 book per day. Please log in.")
