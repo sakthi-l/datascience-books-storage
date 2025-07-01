@@ -149,7 +149,11 @@ def user_dashboard(user):
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
+        st.write("📥 Your Recent Downloads")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
+    else:
+        st.info("You haven't downloaded any books yet.")
+
     if favs:
         st.write("⭐ Bookmarked Books")
         book_ids = [ObjectId(f['book_id']) for f in favs]
