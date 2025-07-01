@@ -277,25 +277,26 @@ def search_books():
                 st.success("Bookmarked")
 
             if user == "admin":
-                book_id_str = str(book['_id'])  # ✅ make safe string version for keys
+                book_id_str = str(book['_id'])  
                 with st.form(f"delete_form_{book_id_str}"):
-                    delete = st.form_submit_button(f"🗑️ Delete '{book['title']}'", key=f"delete_btn_{book_id_str}")
+                    delete = st.form_submit_button("Delete Book", key=f"delete_btn_{book_id_str}")  # ✅ clean label
                     if delete:
                         try:
                             file_id = book.get("file_id")
                             if file_id:
                                 file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
                                 fs.delete(file_id)
-                            
+            
                             books_col.delete_one({"_id": book['_id']})
                             fav_col.delete_many({"book_id": book_id_str})
                             logs_col.delete_many({"book": book["title"]})
-                            st.success(f"✅ Deleted '{book['title']}'")
+                            st.success("✅ Book deleted successfully!")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"❌ Deletion failed: {e}")
+                            st.error(f"❌ Error deleting book: {e}")
             
-            
+                        
+                        
 
 
     
