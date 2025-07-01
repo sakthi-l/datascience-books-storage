@@ -264,17 +264,17 @@ def search_books():
     key=f"download_{safe_key(book['_id'])}"
 )
 
-                    if downloaded:
-                        logs_col.insert_one({
-                            "type": "download",
-                            "user": user if user else "guest",
-                            "ip": ip,
-                            "book": book["title"],
-                            "author": book.get("author"),
-                            "language": book.get("language"),
-                            "timestamp": datetime.utcnow()
-                        })
-                        st.success("✅ Download logged!")
+                        if downloaded:
+                            logs_col.insert_one({
+                                "type": "download",
+                                "user": user if user else "guest",
+                                "ip": ip,
+                                "book": book["title"],
+                                "author": book.get("author"),
+                                "language": book.get("language"),
+                                "timestamp": datetime.utcnow()
+                            })
+                            st.success("✅ Download logged!")
 
                     else:
                         st.warning("Guests can download only 1 book per day. Please log in.")
