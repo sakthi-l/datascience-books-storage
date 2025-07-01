@@ -13,3 +13,5 @@ PyMuPDF>=1.23.7
 plotly>=5.20.0
 pandas>=2.2.2
 pillow
+streamlit>=1.8.0
+dnspython
