@@ -10,8 +10,10 @@ import socket
 import gridfs
 import re
 def rerun():
-    raise st.script_runner.RerunException(st.script_request_queue.RerunData(None))
-
+    try:
+        st.experimental_rerun()
+    except Exception as e:
+        st.error(f"Unexpected rerun error: {e}")
 # --- MongoDB Setup ---
 db_password = st.secrets["mongodb"]["password"]  # only password in secrets
 admin_user = st.secrets["mongodb"]["admin_user"]
