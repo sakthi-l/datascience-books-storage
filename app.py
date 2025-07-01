@@ -9,6 +9,8 @@ from bson import ObjectId
 import socket
 import gridfs
 import re
+def rerun():
+    raise st.script_runner.RerunException(st.script_request_queue.RerunData(None))
 
 # --- MongoDB Setup ---
 db_password = st.secrets["mongodb"]["password"]  # only password in secrets
@@ -64,13 +66,13 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("Logged in as Admin")
-            st.experimental_rerun()
+            rerun()
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
                 st.success(f"Welcome {username}")
-                st.experimental_rerun()
+                rerun()
             else:
                 st.error("Invalid or unverified credentials")
 
@@ -283,26 +285,6 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
-            # Admin controls
-            if user == "admin":
-                book_id_str = str(book['_id'])
-                safe_book_id = safe_key(book_id_str)
-                with st.form(f"delete_form_{safe_book_id}"):
-                    delete = st.form_submit_button("Delete Book", key=f"delete_btn_{safe_book_id}")  # ✅ clean label
-                    if delete:
-                        try:
-                            file_id = book.get("file_id")
-                            if file_id:
-                                file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
-                                fs.delete(file_id)
-
-                            books_col.delete_one({"_id": book['_id']})
-                            fav_col.delete_many({"book_id": book_id_str})
-                            logs_col.delete_many({"book": book["title"]})
-                            st.success("✅ Book deleted successfully!")
-                            st.experimental_rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error deleting book: {e}")
 
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
@@ -354,7 +336,7 @@ def manage_users():
                         {"$set": {"verified": not user.get("verified", False)}}
                     )
                     st.success("Verification status updated")
-                    st.experimental_rerun()
+                    rerun()
 
             with col2:
                 if st.button("❌ Delete User", key=f"delete_{safe_key(user['_id'])}"):
@@ -366,7 +348,7 @@ def manage_users():
                             logs_col.delete_many({"user": user["username"]})
                             fav_col.delete_many({"user": user["username"]})
                             st.warning("User deleted")
-                            st.experimental_rerun()
+                            rerun()
 
 def edit_book_metadata():
     st.subheader("📝 Edit Book Metadata")
