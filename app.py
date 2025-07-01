@@ -499,7 +499,7 @@ def clear_collections():
             for coll_name in collections:
                 db[coll_name].delete_many({})
             st.success("✅ All collections cleared!")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("❌ You must type 'CONFIRM' exactly to clear the collections.")
 
@@ -551,13 +551,13 @@ def main():
             add_new_course()
         elif admin_tab == "⚠️ Clear Collections":
             clear_collections()
-        else:
-            user_dashboard(user)
+    else:
+        user_dashboard(user)
     
 
     if st.button("Logout"):
         st.session_state.clear()
-        st.experimental_rerun()
+        st.rerun()
 
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
