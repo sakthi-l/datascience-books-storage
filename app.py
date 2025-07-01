@@ -553,8 +553,7 @@ def main():
             clear_collections()
         else:
             user_dashboard(user)
-    else:
-        user_dashboard(user)
+    
 
     if st.button("Logout"):
         st.session_state.clear()
