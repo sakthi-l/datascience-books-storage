@@ -277,24 +277,30 @@ def search_books():
                 st.success("Bookmarked")
 
             if user == "admin":
-                with st.form(f"delete_form_{book['_id']}"):
-                    delete = st.form_submit_button(f"🗑️ Delete '{book['title']}'")
-            
+                with st.form(f"delete_form_{str(book['_id'])}"):
+                    delete = st.form_submit_button(f"🗑️ Delete '{book['title']}'", key=f"delete_btn_{book['_id']}")
                     if delete:
                         try:
+                            # Clean ObjectId
+                            book_id = book["_id"]
+                            if not isinstance(book_id, ObjectId):
+                                book_id = ObjectId(book_id)
+            
+                            # Delete file if exists
                             file_id = book.get("file_id")
                             if file_id:
                                 file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
                                 fs.delete(file_id)
             
-                            books_col.delete_one({"_id": book["_id"]})
-                            fav_col.delete_many({"book_id": str(book["_id"])})
+                            books_col.delete_one({"_id": book_id})
+                            fav_col.delete_many({"book_id": str(book_id)})
                             logs_col.delete_many({"book": book["title"]})
             
-                            st.success(f"✅ Successfully deleted '{book['title']}'")
+                            st.success(f"✅ Deleted '{book['title']}'")
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error during deletion: {e}")
+
 
 
     
