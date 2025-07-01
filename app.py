@@ -33,6 +33,10 @@ def get_ip():
     except:
         return "unknown"
 
+def safe_key(raw_key):
+    """Sanitize dynamic keys for Streamlit widgets."""
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', str(raw_key))
+
 # --- Registration ---
 def register_user():
     st.subheader("🌽 Register")
@@ -60,13 +64,13 @@ def login_user():
         if username == admin_user and password == admin_pass:
             st.session_state["user"] = "admin"
             st.success("Logged in as Admin")
-            st.rerun()
+            st.experimental_rerun()
         else:
             user = users_col.find_one({"username": username})
             if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
                 st.session_state["user"] = username
                 st.success(f"Welcome {username}")
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.error("Invalid or unverified credentials")
 
@@ -202,12 +206,14 @@ def search_books():
     if course_filter != "All":
         query["course"] = course_filter
         filters_applied = True
+
     books = []
     if submitted:
         if filters_applied:
             books = list(books_col.find(query).sort("uploaded_at", -1).limit(50))
         else:
             books = list(books_col.find().sort("uploaded_at", -1).limit(3))
+
     missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
@@ -217,6 +223,7 @@ def search_books():
         "type": "download",
         "timestamp": {"$gte": today_start}
     })
+
     for book in books:
         with st.expander(book["title"]):
             st.write(f"**Author:** {book.get('author', 'N/A')}")
@@ -248,7 +255,7 @@ def search_books():
                             data=data,
                             file_name=file_name,
                             mime="application/pdf",
-                            key=f"download_{book['_id']}"
+                            key=f"download_{safe_key(book['_id'])}"
                         ):
                             logs_col.insert_one({
                                 "type": "download",
@@ -268,7 +275,7 @@ def search_books():
 
             # Bookmark button
             user = st.session_state.get("user")
-            if user and st.button("⭐ Bookmark", key=f"bookmark_{book['_id']}"):
+            if user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
                 fav_col.update_one(
                     {"user": user, "book_id": str(book['_id'])},
                     {"$set": {"timestamp": datetime.utcnow()}},
@@ -276,17 +283,19 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
+            # Admin controls
             if user == "admin":
-                book_id_str = str(book['_id'])  
-                with st.form(f"delete_form_{book_id_str}"):
-                    delete = st.form_submit_button("Delete Book", key=f"delete_btn_{book_id_str}")  # ✅ clean label
+                book_id_str = str(book['_id'])
+                safe_book_id = safe_key(book_id_str)
+                with st.form(f"delete_form_{safe_book_id}"):
+                    delete = st.form_submit_button("Delete Book", key=f"delete_btn_{safe_book_id}")  # ✅ clean label
                     if delete:
                         try:
                             file_id = book.get("file_id")
                             if file_id:
                                 file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
                                 fs.delete(file_id)
-                    
+
                             books_col.delete_one({"_id": book['_id']})
                             fav_col.delete_many({"book_id": book_id_str})
                             logs_col.delete_many({"book": book["title"]})
@@ -294,10 +303,12 @@ def search_books():
                             st.experimental_rerun()
                         except Exception as e:
                             st.error(f"❌ Error deleting book: {e}")
-        if st.session_state.get("user") == "admin" and missing_files:
-            st.error("⚠️ The following books have missing or invalid files:")
+
+    if st.session_state.get("user") == "admin" and missing_files:
+        st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
+
 def manage_users():
     st.subheader("👥 Manage Users")
 
@@ -314,7 +325,6 @@ def manage_users():
             st.write(f"✅ Verified: {'Yes' if user.get('verified') else 'No'}")
             st.write(f"🕒 Joined: {user.get('created_at', 'N/A')}")
 
-            # Stats
             dl_count = logs_col.count_documents({"user": user["username"], "type": "download"})
             fav_count = fav_col.count_documents({"user": user["username"]})
             st.write(f"📥 Downloads: {dl_count}")
@@ -338,25 +348,26 @@ def manage_users():
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("✅ Toggle Verified", key=f"verify_{user['_id']}"):
+                if st.button("✅ Toggle Verified", key=f"verify_{safe_key(user['_id'])}"):
                     users_col.update_one(
                         {"_id": user["_id"]},
                         {"$set": {"verified": not user.get("verified", False)}}
                     )
                     st.success("Verification status updated")
-                    st.rerun()
+                    st.experimental_rerun()
 
             with col2:
-                if st.button("❌ Delete User", key=f"delete_{user['_id']}"):
-                    if user["username"] == st.session_state["user"]:
+                if st.button("❌ Delete User", key=f"delete_{safe_key(user['_id'])}"):
+                    if user["username"] == st.session_state.get("user"):
                         st.error("You cannot delete your own account while logged in.")
                     else:
-                        if st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{user['_id']}"):
+                        if st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{safe_key(user['_id'])}"):
                             users_col.delete_one({"_id": user["_id"]})
                             logs_col.delete_many({"user": user["username"]})
                             fav_col.delete_many({"user": user["username"]})
                             st.warning("User deleted")
-                            st.rerun()
+                            st.experimental_rerun()
+
 def edit_book_metadata():
     st.subheader("📝 Edit Book Metadata")
     books = list(books_col.find())
@@ -373,9 +384,10 @@ def edit_book_metadata():
     language = st.text_input("Language", value=book.get("language", ""))
     keywords = st.text_input("Keywords (comma-separated)", value=", ".join(book.get("keywords", [])))
 
-    # Dynamically fetch courses from DB
     existing_courses = books_col.distinct("course")
-    course = st.selectbox("Course", sorted(existing_courses), index=sorted(existing_courses).index(book.get("course", "Other / Not Mapped")) if book.get("course") in existing_courses else 0)
+    existing_courses_sorted = sorted(existing_courses)
+    selected_course_index = existing_courses_sorted.index(book.get("course", "Other / Not Mapped")) if book.get("course") in existing_courses_sorted else 0
+    course = st.selectbox("Course", existing_courses_sorted, index=selected_course_index)
 
     if st.button("Update Metadata"):
         books_col.update_one(
@@ -389,6 +401,7 @@ def edit_book_metadata():
             }}
         )
         st.success("✅ Book metadata updated!")
+
 def add_new_course():
     st.subheader("➕ Add New Course")
 
@@ -399,12 +412,10 @@ def add_new_course():
         if not new_course:
             st.warning("Course name cannot be empty.")
             return
-        # Use books_col to track course list for now
         existing_courses = books_col.distinct("course")
         if new_course in existing_courses:
             st.warning("Course already exists.")
         else:
-            # Dummy insert to record course without real book
             books_col.insert_one({
                 "title": "[Dummy Course Entry]",
                 "author": "",
@@ -433,7 +444,6 @@ def bulk_upload_with_gridfs():
         st.warning("Please upload a CSV file to continue.")
         return
 
-    # Reset pointer to ensure reading works
     csv_file.seek(0)
 
     try:
@@ -453,7 +463,6 @@ def bulk_upload_with_gridfs():
         st.error("The CSV file contains no data. Please upload a valid CSV file.")
         return
 
-    # Read all PDFs into a dictionary
     pdf_lookup = {f.name: f.read() for f in pdf_files} if pdf_files else {}
 
     count = 0
@@ -466,14 +475,12 @@ def bulk_upload_with_gridfs():
             st.warning(f"⚠️ Skipping '{row.get('title', 'Unknown')}' - No matching PDF file found.")
             continue
 
-        # Attempt to store the PDF in GridFS
         try:
             file_id = fs.put(file_data, filename=file_name)
         except Exception as e:
             st.error(f"❌ Failed to upload '{file_name}': {e}")
             continue
 
-        # Skip if the book already exists
         existing = books_col.find_one({
             "title": row.get("title", ""),
             "file_name": file_name
@@ -483,7 +490,6 @@ def bulk_upload_with_gridfs():
             st.warning(f"⚠️ Skipping duplicate: '{row.get('title')}' already exists.")
             continue
 
-        # Insert metadata into MongoDB
         books_col.insert_one({
             "title": row.get("title", ""),
             "author": row.get("author", ""),
@@ -498,6 +504,7 @@ def bulk_upload_with_gridfs():
         count += 1
 
     st.success(f"✅ {count} book(s) uploaded successfully via GridFS!")
+
 def clear_collections():
     st.subheader("⚠️ Clear All Collections (Admin Only)")
 
@@ -510,7 +517,7 @@ def clear_collections():
             for coll_name in collections:
                 db[coll_name].delete_many({})
             st.success("✅ All collections cleared!")
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.error("❌ You must type 'CONFIRM' exactly to clear the collections.")
 
@@ -569,9 +576,11 @@ def main():
 
     if st.button("Logout"):
         st.session_state.clear()
-        st.rerun()
+        st.experimental_rerun()
 
     if "user" not in st.session_state:
         st.markdown("\n---\n💡 **Login to avail more features**")
+
 if __name__ == "__main__":
     main()
+
