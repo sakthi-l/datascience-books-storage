@@ -286,20 +286,14 @@ def search_books():
                             if file_id:
                                 file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
                                 fs.delete(file_id)
-            
+                    
                             books_col.delete_one({"_id": book['_id']})
                             fav_col.delete_many({"book_id": book_id_str})
                             logs_col.delete_many({"book": book["title"]})
                             st.success("✅ Book deleted successfully!")
-                            st.rerun()
+                            st.experimental_rerun()
                         except Exception as e:
                             st.error(f"❌ Error deleting book: {e}")
-            
-                        
-                        
-
-
-    
         if st.session_state.get("user") == "admin" and missing_files:
             st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
