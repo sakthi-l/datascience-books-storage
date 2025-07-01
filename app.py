@@ -256,22 +256,26 @@ def search_books():
                     can_download = user or guest_downloads_today < 1
 
                     if can_download:
-                        if st.download_button(
-                            label="📄 Download Book",
-                            data=data,
-                            file_name=file_name,
-                            mime="application/pdf",
-                            key=f"download_{safe_key(book['_id'])}"
-                        ):
-                            logs_col.insert_one({
-                                "type": "download",
-                                "user": user if user else "guest",
-                                "ip": ip,
-                                "book": book["title"],
-                                "author": book.get("author"),
-                                "language": book.get("language"),
-                                "timestamp": datetime.utcnow()
-                            })
+                        downloaded = st.download_button(
+    label="📄 Download Book",
+    data=data,
+    file_name=file_name,
+    mime="application/pdf",
+    key=f"download_{safe_key(book['_id'])}"
+)
+
+                    if downloaded:
+                        logs_col.insert_one({
+                            "type": "download",
+                            "user": user if user else "guest",
+                            "ip": ip,
+                            "book": book["title"],
+                            "author": book.get("author"),
+                            "language": book.get("language"),
+                            "timestamp": datetime.utcnow()
+                        })
+                        st.success("✅ Download logged!")
+
                     else:
                         st.warning("Guests can download only 1 book per day. Please log in.")
                 except Exception as e:
