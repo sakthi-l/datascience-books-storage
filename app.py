@@ -10,7 +10,7 @@ import socket
 import gridfs
 import re
 def rerun():
-    st.experimental_rerun()
+    st.rerun()
 
 # --- MongoDB Setup ---
 db_password = st.secrets["mongodb"]["password"]  # only password in secrets
