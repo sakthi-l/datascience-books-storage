@@ -277,39 +277,24 @@ def search_books():
                 st.success("Bookmarked")
 
             if user == "admin":
-                confirm_key = f"confirm_delete_{str(book['_id'])}"
-                delete_btn_key = f"delete_button_{str(book['_id'])}"
+                with st.form(f"delete_form_{book['_id']}"):
+                    confirm = st.checkbox(f"⚠️ Confirm deletion of '{book['title']}'", key=f"confirm_{book['_id']}")
+                    delete = st.form_submit_button(f"🗑️ Delete '{book['title']}'")
             
-                # Step 1: Confirm checkbox
-                confirm = st.checkbox(f"⚠️ Confirm deletion of '{book['title']}'", key=confirm_key)
-            
-                # Step 2: Show delete button only if confirmed
-                if confirm:
-                    if st.button(f"🗑️ Delete '{book['title']}'", key=delete_btn_key):
+                    if confirm and delete:
                         try:
-                            # Delete from GridFS if exists
                             file_id = book.get("file_id")
                             if file_id:
-                                try:
-                                    file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
-                                    fs.delete(file_id)
-                                    st.write(f"Deleted file from GridFS: {file_id}")
-                                except Exception as gridfs_error:
-                                    st.warning(f"⚠️ GridFS file not deleted: {gridfs_error}")
-            
-                            # Delete metadata from books collection
-                            result = books_col.delete_one({"_id": book["_id"]})
-                            st.write(f"Deleted metadata count: {result.deleted_count}")
-            
-                            # Optional: Clean logs & favorites
+                                file_id = ObjectId(file_id) if not isinstance(file_id, ObjectId) else file_id
+                                fs.delete(file_id)
+                            books_col.delete_one({"_id": book["_id"]})
                             fav_col.delete_many({"book_id": str(book["_id"])})
                             logs_col.delete_many({"book": book["title"]})
-            
                             st.success(f"✅ Successfully deleted '{book['title']}'")
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error during deletion: {e}")
-        
+
     
         if st.session_state.get("user") == "admin" and missing_files:
             st.error("⚠️ The following books have missing or invalid files:")
