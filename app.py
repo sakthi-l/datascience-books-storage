@@ -269,8 +269,6 @@ def search_books():
                             "timestamp": datetime.utcnow()
                         })
                         st.success(f"✅ Download logged for {current_user}")
-
-
                     else:
                         st.warning("Guests can download only 1 book per day. Please log in.")
                 except Exception as e:
