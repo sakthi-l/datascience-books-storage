@@ -144,17 +144,14 @@ def admin_dashboard():
 # --- User Dashboard ---
 def user_dashboard(user):
     st.subheader("📊 Your Dashboard")
-    st.write("👀 Looking for logs for user:", user)
 
-    logs = list(logs_col.find({"user": {"$regex": f"^{user}$", "$options": "i"}}))
+    logs = list(logs_col.find({"user": user}))
     favs = list(fav_col.find({"user": user}))
-
-    all_logs = list(logs_col.find({}))
-    st.write("📦 All logs:", all_logs)
 
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
+        st.write("📥 Download History")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
     else:
         st.info("You haven't downloaded any books yet.")
