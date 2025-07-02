@@ -69,7 +69,7 @@ def login_user():
             rerun()
         else:
             user = users_col.find_one({"username": username})
-            if user and user.get("verified") and bcrypt.checkpw(password.encode(), user["password"]):
+            if user and user.get("verified") and bcrypt.checkpw(password.encode(), bytes(user["password"])):
                 st.session_state["user"] = username
                 st.success(f"Welcome {username}")
                 rerun()
