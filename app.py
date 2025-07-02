@@ -95,7 +95,7 @@ def upload_book():
         language = st.text_input("Language", key="upload_language")
         keywords = st.text_input("Keywords (comma-separated)", key="upload_keywords")
         default_courses = [ "Probability & Statistics using R", "Mathematics for Data Science",
-    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Python for Data Science", "RDBMS,SQL & Visualization",
     "Data mining Techniques", "Artificial Intelligence and Reasoning",
     "Machine Learning", "Big Data Mining and Analytics",
     "Predictive Analytics", "Ethics and Data Security",
@@ -200,7 +200,7 @@ def search_books():
             languages = [l for l in books_col.distinct("language") if l and l.strip()]
             default_courses = [
                 "Probability & Statistics using R", "Mathematics for Data Science",
-                "Python for Data Science", "RDBMS, SQL & Visualization",
+                "Python for Data Science", "RDBMS,SQL & Visualization",
                 "Data mining Techniques", "Artificial Intelligence and reasoning",
                 "Machine Learning", "Big Data Mining and Analytics",
                 "Predictive Analytics", "Ethics and Data Security",
@@ -451,7 +451,7 @@ def edit_book_metadata():
 
     # Full course list from syllabus
     default_courses = [ "Probability & Statistics using R", "Mathematics for Data Science",
-    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Python for Data Science", "RDBMS,SQL & Visualization",
     "Data mining Techniques", "Artificial Intelligence and reasoning",
     "Machine Learning", "Big Data Mining and Analytics",
     "Predictive Analytics", "Ethics and Data Security",
