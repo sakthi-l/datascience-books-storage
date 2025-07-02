@@ -168,38 +168,38 @@ def user_dashboard(user):
     logs = list(logs_col.find({"user": user, "type": "download"}))
     favs = list(fav_col.find({"user": user}))
 
-    # 🟦 DOWNLOAD HISTORY SECTION
+    # --- Downloads Section ---
     if logs:
-        df = pd.DataFrame(logs).drop_duplicates(subset=["book", "timestamp"])
+        df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        st.write("📥 Download History")
+        df['date_only'] = df['timestamp'].dt.date
+        df = df.drop_duplicates(subset=["book", "date_only"])  # Dedupe per book per day
+
+        st.write("📥 Download History (Unique per Book per Day)")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
     else:
         st.info("You haven't downloaded any books yet.")
 
-    # 🟨 BOOKMARKED BOOKS SECTION
+    # --- Bookmarked Section ---
     if favs:
         st.write("⭐ Bookmarked Books")
-        book_ids = [ObjectId(f['book_id']) for f in favs if ObjectId.is_valid(f['book_id'])]
-        books = list(books_col.find({"_id": {"$in": book_ids}}))
-        book_map = {str(b["_id"]): b for b in books}
 
-        bookmark_data = []
+        try:
+            book_ids = [ObjectId(f['book_id']) for f in favs]
+            book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": book_ids}})}
 
-        for f in favs:
-            book = book_map.get(f['book_id'])
-            if book:
-                bookmark_data.append({
-                    "Title": book["title"],
-                    "Author": book.get("author", "N/A"),
-                    "Language": book.get("language", "N/A"),
-                    "Bookmarked At": f['timestamp'].strftime('%Y-%m-%d %H:%M')
-                })
-            else:
-                st.warning(f"⚠️ Book with ID {f['book_id']} not found (may have been deleted).")
-
-        if bookmark_data:
-            st.dataframe(pd.DataFrame(bookmark_data))
+            for f in favs:
+                book = book_map.get(f['book_id'])
+                if book:
+                    ts = f.get("timestamp")
+                    time_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown time"
+                    st.markdown(
+                        f"📘 **{book['title']}** – bookmarked at `{time_str}`"
+                    )
+                else:
+                    st.warning(f"Book ID {f['book_id']} not found in database.")
+        except Exception as e:
+            st.error(f"Error loading bookmarks: {e}")
     else:
         st.info("You haven't bookmarked any books yet.")
 
