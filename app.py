@@ -227,12 +227,6 @@ def search_books():
     missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
-    guest_downloads_today = logs_col.count_documents({
-        "user": "guest",
-        "ip": ip,
-        "type": "download",
-        "timestamp": {"$gte": today_start}
-    })
 
     for book in books:
         with st.expander(book["title"]):
@@ -257,11 +251,32 @@ def search_books():
                     current_user = st.session_state.get("user", None)
                     is_guest = current_user is None
 
-                    # Logged-in users: unlimited downloads
-                    # Guests: only 1 per day
-                    if not is_guest or guest_downloads_today < 1:
-                        download_key = f"download_{safe_key(book['_id'])}"
-                        if st.button("⬇️ Download PDF", key=download_key):
+                    allow_download = False
+
+                    if not is_guest:
+                        allow_download = True  # logged-in users can always download
+                    else:
+                        already_downloaded = logs_col.find_one({
+                            "user": "guest",
+                            "ip": ip,
+                            "type": "download",
+                            "timestamp": {"$gte": today_start}
+                        })
+                        if not already_downloaded:
+                            allow_download = True
+
+                    if allow_download:
+                        st.download_button(
+                            label="📥 Download PDF",
+                            data=data,
+                            file_name=file_name,
+                            mime="application/pdf",
+                            key=f"download_{safe_key(book['_id'])}"
+                        )
+
+                        # Log download only once per book per session
+                        session_key = f"logged_{book['_id']}"
+                        if not st.session_state.get(session_key):
                             logs_col.insert_one({
                                 "type": "download",
                                 "user": current_user.lower() if current_user else "guest",
@@ -271,14 +286,7 @@ def search_books():
                                 "language": book.get("language"),
                                 "timestamp": datetime.utcnow()
                             })
-
-                            st.download_button(
-                                label="📥 Click to Download",
-                                data=data,
-                                file_name=file_name,
-                                mime="application/pdf",
-                                key=f"real_download_{safe_key(book['_id'])}"
-                            )
+                            st.session_state[session_key] = True
                     else:
                         st.warning("🚫 Guests can download only 1 book per day. Please log in to download more.")
 
@@ -286,9 +294,9 @@ def search_books():
                     st.error(f"❌ Could not retrieve file from storage: {e}")
                     missing_files.append(book["title"])
 
-            # Bookmark button
+            # ⭐ Bookmark button
             user = st.session_state.get("user")
-            if user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
+            if user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}")):
                 fav_col.update_one(
                     {"user": user, "book_id": str(book['_id'])},
                     {"$set": {"timestamp": datetime.utcnow()}},
@@ -296,10 +304,12 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
+    # Admin: show missing file warnings
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
+
 def manage_users():
     st.subheader("👥 Manage Users")
 
