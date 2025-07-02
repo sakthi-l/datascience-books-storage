@@ -334,12 +334,8 @@ def search_books():
                 missing_files.append(book["title"])
 
             # ⭐ Bookmark button + optional logging
-            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
-                fav_col.update_one(
-                    {"user": current_user, "book_id": str(book['_id'])},
-                    {"$set": {"timestamp": datetime.utcnow()}},
-                    upsert=True
-                )
+            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):fav_col.update_one({"user": current_user, "book_id": str(book['_id'])},{"$set": {"timestamp": datetime.utcnow()}},
+        upsert=True )
                 logs_col.insert_one({
                     "type": "bookmark",
                     "user": current_user.lower(),
@@ -350,6 +346,7 @@ def search_books():
                     "timestamp": datetime.utcnow()
                 })
                 st.success("Bookmarked!")
+
 
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
