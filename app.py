@@ -242,12 +242,10 @@ def search_books():
             st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
 
             file_id = book.get("file_id")
-            failed_to_load = False
 
             if not file_id:
                 st.warning("⚠️ No file associated with this book.")
                 missing_files.append(book["title"])
-                failed_to_load = True
             else:
                 try:
                     if not isinstance(file_id, ObjectId):
@@ -257,10 +255,13 @@ def search_books():
                     file_name = grid_file.filename
 
                     current_user = st.session_state.get("user", None)
-                    downloaded= current_user or guest_downloads_today < 1
-                    download_button_key = f"download_{safe_key(book['_id'])}"
-                    if st.button("⬇️ Download PDF", key=download_button_key):
-                        if downloaded:
+                    is_guest = current_user is None
+
+                    # Logged-in users: unlimited downloads
+                    # Guests: only 1 per day
+                    if not is_guest or guest_downloads_today < 1:
+                        download_key = f"download_{safe_key(book['_id'])}"
+                        if st.button("⬇️ Download PDF", key=download_key):
                             logs_col.insert_one({
                                 "type": "download",
                                 "user": current_user.lower() if current_user else "guest",
@@ -270,15 +271,20 @@ def search_books():
                                 "language": book.get("language"),
                                 "timestamp": datetime.utcnow()
                             })
-                            st.success("✅ Download logged.")
-                            st.download_button("📥 Click to Download", data, file_name=file_name, mime="application/pdf")
-                        else:
-                            st.warning("Guests can download only 1 book per day. Please log in.")
+
+                            st.download_button(
+                                label="📥 Click to Download",
+                                data=data,
+                                file_name=file_name,
+                                mime="application/pdf",
+                                key=f"real_download_{safe_key(book['_id'])}"
+                            )
+                    else:
+                        st.warning("🚫 Guests can download only 1 book per day. Please log in to download more.")
 
                 except Exception as e:
                     st.error(f"❌ Could not retrieve file from storage: {e}")
                     missing_files.append(book["title"])
-                    failed_to_load = True
 
             # Bookmark button
             user = st.session_state.get("user")
@@ -290,12 +296,10 @@ def search_books():
                 )
                 st.success("Bookmarked")
 
-
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
-
 def manage_users():
     st.subheader("👥 Manage Users")
 
