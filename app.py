@@ -168,41 +168,44 @@ def user_dashboard(user):
     logs = list(logs_col.find({"user": user, "type": "download"}))
     favs = list(fav_col.find({"user": user}))
 
-    # --- Downloads Section ---
+    # --- DOWNLOAD HISTORY (Deduped per book per day) ---
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df['date_only'] = df['timestamp'].dt.date
-        df = df.drop_duplicates(subset=["book", "date_only"])  # Dedupe per book per day
-
-        st.write("📥 Download History (Unique per Book per Day)")
+        df = df.drop_duplicates(subset=["book", "date_only"])
+        st.write("📥 Download History")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
     else:
         st.info("You haven't downloaded any books yet.")
 
-    # --- Bookmarked Section ---
+    # --- BOOKMARKED BOOKS ---
     if favs:
         st.write("⭐ Bookmarked Books")
 
-        book_ids = [f['book_id'] for f in favs if 'book_id' in f]
-        books = list(books_col.find({"_id": {"$in": [ObjectId(bid) for bid in book_ids if ObjectId.is_valid(bid)]}}))
-        book_map = {str(b['_id']): b for b in books}
+        # Only include valid ObjectId strings
+        valid_ids = []
+        for f in favs:
+            try:
+                valid_ids.append(ObjectId(f["book_id"]))
+            except:
+                continue
+
+        book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": valid_ids}})}
 
         for f in favs:
-            book_id = f.get('book_id')
-            book = book_map.get(book_id)
+            bid = f.get("book_id")
+            book = book_map.get(bid)
+            ts = f.get("timestamp")
+
             if book:
-                ts = f.get("timestamp")
-                time_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown time"
-                st.markdown(f"📘 **{book['title']}** – bookmarked at `{time_str}`")
+                timestamp_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown"
+                st.markdown(f"📘 **{book['title']}** – bookmarked at `{timestamp_str}`")
             else:
-                st.warning(f"❌ Book for ID `{book_id}` not found.")
+                st.warning(f"⚠️ Could not find book for ID: {bid}")
     else:
         st.info("You haven't bookmarked any books yet.")
 
-
-def search_books():
-    st.subheader("🔎 Search Books")
 
     with st.form("search_form"):
         with st.expander("🔧 Advanced Search Filters", expanded=True):
