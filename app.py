@@ -184,22 +184,19 @@ def user_dashboard(user):
     if favs:
         st.write("⭐ Bookmarked Books")
 
-        try:
-            book_ids = [ObjectId(f['book_id']) for f in favs]
-            book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": book_ids}})}
+        book_ids = [f['book_id'] for f in favs if 'book_id' in f]
+        books = list(books_col.find({"_id": {"$in": [ObjectId(bid) for bid in book_ids if ObjectId.is_valid(bid)]}}))
+        book_map = {str(b['_id']): b for b in books}
 
-            for f in favs:
-                book = book_map.get(f['book_id'])
-                if book:
-                    ts = f.get("timestamp")
-                    time_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown time"
-                    st.markdown(
-                        f"📘 **{book['title']}** – bookmarked at `{time_str}`"
-                    )
-                else:
-                    st.warning(f"Book ID {f['book_id']} not found in database.")
-        except Exception as e:
-            st.error(f"Error loading bookmarks: {e}")
+        for f in favs:
+            book_id = f.get('book_id')
+            book = book_map.get(book_id)
+            if book:
+                ts = f.get("timestamp")
+                time_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown time"
+                st.markdown(f"📘 **{book['title']}** – bookmarked at `{time_str}`")
+            else:
+                st.warning(f"❌ Book for ID `{book_id}` not found.")
     else:
         st.info("You haven't bookmarked any books yet.")
 
