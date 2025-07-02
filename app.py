@@ -420,13 +420,13 @@ def edit_book_metadata():
     # Full course list from syllabus
     default_courses = [
         "Probability & Statistics using R", "Mathematics for Data Science",
-        "Python for Data Science", "RDBMS, SQL & Visualization",
-        "Data Mining Techniques", "Artificial Intelligence & Reasoning",
-        "Machine Learning", "Big Data Mining & Analytics",
-        "Predictive Analytics", "Ethics & Data Security",
+        "Python for Data Science", "RDBMS, SQL and Visualization",
+        "Data Mining Techniques", "Artificial Intelligence and Reasoning",
+        "Machine Learning", "Big Data Mining and Analytics",
+        "Predictive Analytics", "Ethics and Data Security",
         "Applied Spatial Data Analytics Using R", "Machine Vision",
-        "Deep Learning & Applications", "Generative AI with LLMs",
-        "Social Networks & Graph Analysis", "Data Visualization Techniques",
+        "Deep Learning and Applications", "Generative AI with LLMs",
+        "Social Networks and Graph Analysis", "Data Visualization Techniques",
         "Algorithmic Trading", "Bayesian Data Analysis",
         "Healthcare Data Analytics", "Data Science for Structural Biology",
         "Other / Not Mapped"
