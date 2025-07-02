@@ -428,7 +428,33 @@ def add_new_course():
                 "uploaded_at": datetime.utcnow()
             })
             st.success(f"Course '{new_course}' added!")
+def delete_course():
+    st.subheader("🗑️ Delete Course")
 
+    existing_courses = sorted(set(books_col.distinct("course")))
+    course = st.selectbox("Select Course to Delete", existing_courses)
+
+    st.warning("⚠️ This will delete all books tagged with this course.")
+    if st.button("❌ Delete Course"):
+        confirm = st.checkbox("I confirm deletion of this course and all its books")
+        if confirm:
+            # Find and delete all books with this course
+            books = list(books_col.find({"course": course}))
+            deleted = 0
+
+            for book in books:
+                if book.get("file_id"):
+                    try:
+                        fs.delete(ObjectId(book["file_id"]))
+                    except:
+                        pass
+                books_col.delete_one({"_id": book["_id"]})
+                logs_col.delete_many({"book": book["title"]})
+                fav_col.delete_many({"book_id": str(book["_id"])})
+                deleted += 1
+
+            st.success(f"✅ Deleted course '{course}' and {deleted} book(s).")
+            rerun()
 def bulk_upload_with_gridfs():
     st.subheader("📥 Bulk Upload Books via CSV + PDF")
 
@@ -547,14 +573,16 @@ def main():
     if user == "admin":
         st.sidebar.markdown("## 🔐 Admin Controls")
         admin_tab = st.sidebar.radio("🛠️ Admin Panel", [
-            "📤 Upload Book",
-            "📥 Bulk Upload",
-            "📊 Analytics",
-            "👥 Manage Users",
-            "📝 Edit Book Metadata",
-            "➕ Add Course",
-            "⚠️ Clear Collections"
-        ])
+    "📤 Upload Book",
+    "📥 Bulk Upload",
+    "📊 Analytics",
+    "👥 Manage Users",
+    "📝 Edit Book Metadata",
+    "➕ Add Course",
+    "🗑️ Delete Course",    # ✅ Add this
+    "⚠️ Clear Collections"
+])
+
 
         if admin_tab == "📤 Upload Book":
             upload_book()
@@ -570,6 +598,9 @@ def main():
             add_new_course()
         elif admin_tab == "⚠️ Clear Collections":
             clear_collections()
+        elif admin_tab == "🗑️ Delete Course":
+            delete_course()
+
     else:
         user_dashboard(user)
     
