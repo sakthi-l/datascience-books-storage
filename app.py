@@ -658,9 +658,6 @@ def clear_collections():
 def main():
     st.set_page_config("📚 DS Book Library")
     st.title("📚 DataScience E-Book Library")
-
-    # Search section accessible to everyone
-    search_books()
     st.markdown("---")
 
     # Login/Register sidebar for unauthenticated users
