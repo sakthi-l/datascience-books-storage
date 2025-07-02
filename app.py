@@ -88,8 +88,7 @@ def upload_book():
         course_options = [
             "Probability & Statistics using R", "Mathematics for Data Science",
             "Python for Data Science", "RDBMS, SQL and Visualization",
-            "Data mining Techniques",
-            "Machine Learning", "Big Data Mining and Analytics",
+            "Data mining Techniques","Machine Learning", "Big Data Mining and Analytics",
             "Predictive Analytics", "Ethics and Data Security",
             "Applied Spatial Data Analytics Using R", "Machine Vision",
             "Deep Learning and Applications", "Generative AI with LLMs",
@@ -181,8 +180,8 @@ def search_books():
             default_courses = [
                 "Probability & Statistics using R", "Mathematics for Data Science",
                 "Python for Data Science", "RDBMS, SQL and Visualization",
-                "Data mining Techniques", "Artificial Intelligence and Reasoning",
-                "Machine Learning", "Big Data Mining & Analytics",
+                "Data mining Techniques", "Artificial Intelligence and reasoning",
+                "Machine Learning", "Big Data Mining and Analytics",
                 "Predictive Analytics", "Ethics and Data Security",
                 "Applied Spatial Data Analytics Using R", "Machine Vision",
                 "Deep Learning and Applications", "Generative AI with LLMs",
