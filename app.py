@@ -296,7 +296,7 @@ def search_books():
                 missing_files.append(book["title"])
 
             # ⭐ Bookmark button
-            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}")):
+            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
                 fav_col.update_one(
                     {"user": current_user, "book_id": str(book['_id'])},
                     {"$set": {"timestamp": datetime.utcnow()}},
