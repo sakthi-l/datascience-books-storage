@@ -606,6 +606,8 @@ def main():
     st.set_page_config("📚 DS Book Library")
     st.title("📚 DataScience E-Book Library")
     st.markdown("---")
+    search_books()
+    st.markdown("---")
 
     # Login/Register sidebar for unauthenticated users
     if "user" not in st.session_state:
