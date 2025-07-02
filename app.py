@@ -11,7 +11,16 @@ import gridfs
 import re
 def rerun():
     st.rerun()
-
+def dedupe_courses(default_list, db_list):
+    seen = set()
+    merged = []
+    for course in default_list + db_list:
+        c = course.strip()
+        c_lower = c.lower()
+        if c_lower not in seen:
+            seen.add(c_lower)
+            merged.append(c)
+    return sorted(merged)
 # --- MongoDB Setup ---
 db_password = st.secrets["mongodb"]["password"]  # only password in secrets
 admin_user = st.secrets["mongodb"]["admin_user"]
@@ -85,19 +94,21 @@ def upload_book():
         author = st.text_input("Author", key="upload_author")
         language = st.text_input("Language", key="upload_language")
         keywords = st.text_input("Keywords (comma-separated)", key="upload_keywords")
-        course_options = [
-            "Probability & Statistics using R", "Mathematics for Data Science",
-            "Python for Data Science", "RDBMS, SQL and Visualization",
-            "Data mining Techniques","Machine Learning", "Big Data Mining and Analytics",
-            "Predictive Analytics", "Ethics and Data Security",
-            "Applied Spatial Data Analytics Using R", "Machine Vision",
-            "Deep Learning and Applications", "Generative AI with LLMs",
-            "Social Networks and Graph Analysis", "Data Visualization Techniques",
-            "Algorithmic Trading", "Bayesian Data Analysis",
-            "Healthcare Data Analytics", "Data Science for Structural Biology",
-            "Other / Not Mapped"
-        ]
+        default_courses = [ "Probability & Statistics using R", "Mathematics for Data Science",
+    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Data mining Techniques", "Artificial Intelligence and Reasoning",
+    "Machine Learning", "Big Data Mining and Analytics",
+    "Predictive Analytics", "Ethics and Data Security",
+    "Applied Spatial Data Analytics Using R", "Machine Vision",
+    "Deep Learning & Applications", "Generative AI with LLMs",
+    "Social Networks and Graph Analysis", "Data Visualization Techniques",
+    "Algorithmic Trading", "Bayesian Data Analysis",
+    "Healthcare Data Analytics", "Data Science for Structural Biology",
+    "Other / Not Mapped" ]  
+        existing_courses = books_col.distinct("course")
+        course_options = dedupe_courses(default_courses, existing_courses)
         course = st.selectbox("Course", course_options, key="upload_course")
+
         if st.button("Upload", key="upload_button"):
             data = uploaded_file.read()
             if len(data) == 0:
@@ -176,22 +187,19 @@ def search_books():
             keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
 
             languages = [l for l in books_col.distinct("language") if l and l.strip()]
+            default_courses = ["Probability & Statistics using R", "Mathematics for Data Science",
+    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Data mining Techniques", "Artificial Intelligence and reasoning",
+    "Machine Learning", "Big Data Mining and Analytics",
+    "Predictive Analytics", "Ethics and Data Security",
+    "Applied Spatial Data Analytics Using R", "Machine Vision",
+    "Deep Learning & Applications", "Generative AI with LLMs",
+    "Social Networks and Graph Analysis", "Data Visualization Techniques",
+    "Algorithmic Trading", "Bayesian Data Analysis",
+    "Healthcare Data Analytics", "Data Science for Structural Biology",
+    "Other / Not Mapped"]
             existing_courses = books_col.distinct("course")
-            default_courses = [
-                "Probability & Statistics using R", "Mathematics for Data Science",
-                "Python for Data Science", "RDBMS, SQL and Visualization",
-                "Data mining Techniques", "Artificial Intelligence and reasoning",
-                "Machine Learning", "Big Data Mining and Analytics",
-                "Predictive Analytics", "Ethics and Data Security",
-                "Applied Spatial Data Analytics Using R", "Machine Vision",
-                "Deep Learning and Applications", "Generative AI with LLMs",
-                "Social Networks and Graph Analysis", "Data Visualization Techniques",
-                "Algorithmic Trading", "Bayesian Data Analysis",
-                "Healthcare Data Analytics", "Data Science for Structural Biology",
-                "Other / Not Mapped"
-            ]
-            all_courses = sorted(set(default_courses + existing_courses))
-
+            all_courses = dedupe_courses(default_courses, existing_courses)
             course_filter = st.selectbox("Course", ["All"] + all_courses, key="search_course")
             language_filter = st.selectbox("Language", ["All"] + sorted(languages), key="search_language")
 
@@ -418,21 +426,20 @@ def edit_book_metadata():
     keywords = st.text_input("Keywords (comma-separated)", value=", ".join(book.get("keywords", [])))
 
     # Full course list from syllabus
-    default_courses = [
-        "Probability & Statistics using R", "Mathematics for Data Science",
-        "Python for Data Science", "RDBMS, SQL and Visualization",
-        "Data Mining Techniques", "Artificial Intelligence and Reasoning",
-        "Machine Learning", "Big Data Mining and Analytics",
-        "Predictive Analytics", "Ethics and Data Security",
-        "Applied Spatial Data Analytics Using R", "Machine Vision",
-        "Deep Learning and Applications", "Generative AI with LLMs",
-        "Social Networks and Graph Analysis", "Data Visualization Techniques",
-        "Algorithmic Trading", "Bayesian Data Analysis",
-        "Healthcare Data Analytics", "Data Science for Structural Biology",
-        "Other / Not Mapped"
-    ]
+    default_courses = [ "Probability & Statistics using R", "Mathematics for Data Science",
+    "Python for Data Science", "RDBMS, SQL & Visualization",
+    "Data mining Techniques", "Artificial Intelligence and reasoning",
+    "Machine Learning", "Big Data Mining and Analytics",
+    "Predictive Analytics", "Ethics and Data Security",
+    "Applied Spatial Data Analytics Using R", "Machine Vision",
+    "Deep Learning & Applications", "Generative AI with LLMs",
+    "Social Networks and Graph Analysis", "Data Visualization Techniques",
+    "Algorithmic Trading", "Bayesian Data Analysis",
+    "Healthcare Data Analytics", "Data Science for Structural Biology",
+    "Other / Not Mapped"]  
     existing_courses = books_col.distinct("course")
-    all_courses = sorted(set(default_courses + existing_courses))
+    all_courses = dedupe_courses(default_courses, existing_courses)
+
     
     selected_course_index = all_courses.index(book.get("course", "Other / Not Mapped")) if book.get("course") in all_courses else 0
     course = st.selectbox("Course", all_courses, index=selected_course_index)
