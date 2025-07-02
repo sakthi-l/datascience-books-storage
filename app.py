@@ -169,7 +169,8 @@ def user_dashboard(user):
     favs = list(fav_col.find({"user": user}))
 
     if logs:
-        df = pd.DataFrame(logs).drop_duplicates(subset=["book", "timestamp"])
+        df = pd.DataFrame(logs)
+        df = df.sort_values("timestamp", ascending=False).drop_duplicates(subset=["book"])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         st.write("📥 Download History")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
