@@ -146,7 +146,7 @@ def user_dashboard(user):
     st.subheader("📊 Your Dashboard")
 
     user = user.lower()
-    logs = list(logs_col.find({"user": user}))
+    logs = list(logs_col.find({"user": user, "type": "download"}))
     favs = list(fav_col.find({"user": user}))
 
     if logs:
@@ -162,10 +162,11 @@ def user_dashboard(user):
         book_ids = [ObjectId(f['book_id']) for f in favs]
         books = books_col.find({"_id": {"$in": book_ids}})
         for book in books:
-            st.write(f"📘 {book['title']} by {book.get('author', 'Unknown')}")
+            timestamp = next((f['timestamp'] for f in favs if f['book_id'] == str(book['_id'])), None)
+            if timestamp:
+                st.write(f"📘 {book['title']} — bookmarked at {timestamp.strftime('%Y-%m-%d %H:%M')}")
 
 
-# --- Search Books Update ---
 def search_books():
     st.subheader("🔎 Search Books")
 
@@ -222,11 +223,13 @@ def search_books():
         if filters_applied:
             books = list(books_col.find(query).sort("uploaded_at", -1).limit(50))
         else:
-            books = list(books_col.find().sort("uploaded_at", -1).limit(3))
+            books = list(books_col.find().sort("uploaded_at", -1).limit(50))
 
-    missing_files = []
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
+    current_user = st.session_state.get("user", None)
+    is_guest = current_user is None
+    missing_files = []
 
     for book in books:
         with st.expander(book["title"]):
@@ -236,75 +239,72 @@ def search_books():
             st.write(f"**Keywords:** {', '.join(book.get('keywords', []))}")
 
             file_id = book.get("file_id")
-
             if not file_id:
                 st.warning("⚠️ No file associated with this book.")
                 missing_files.append(book["title"])
-            else:
-                try:
-                    if not isinstance(file_id, ObjectId):
-                        file_id = ObjectId(file_id)
-                    grid_file = fs.get(file_id)
-                    data = grid_file.read()
-                    file_name = grid_file.filename
+                continue
 
-                    current_user = st.session_state.get("user", None)
-                    is_guest = current_user is None
+            try:
+                if not isinstance(file_id, ObjectId):
+                    file_id = ObjectId(file_id)
+                grid_file = fs.get(file_id)
+                data = grid_file.read()
+                file_name = grid_file.filename
 
-                    allow_download = False
+                allow_download = False
 
-                    if not is_guest:
-                        allow_download = True  # logged-in users can always download
-                    else:
-                        already_downloaded = logs_col.find_one({
-                            "user": "guest",
-                            "ip": ip,
+                if not is_guest:
+                    allow_download = True
+                else:
+                    already_downloaded = logs_col.find_one({
+                        "user": "guest",
+                        "ip": ip,
+                        "type": "download",
+                        "timestamp": {"$gte": today_start}
+                    })
+                    if not already_downloaded:
+                        allow_download = True
+
+                session_key = f"logged_{book['_id']}"
+
+                if allow_download:
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=data,
+                        file_name=file_name,
+                        mime="application/pdf",
+                        key=f"download_{safe_key(book['_id'])}"
+                    )
+
+                    # Log only once per session per book
+                    if not st.session_state.get(session_key):
+                        logs_col.insert_one({
                             "type": "download",
-                            "timestamp": {"$gte": today_start}
+                            "user": current_user.lower() if current_user else "guest",
+                            "ip": ip,
+                            "book": book["title"],
+                            "author": book.get("author"),
+                            "language": book.get("language"),
+                            "timestamp": datetime.utcnow()
                         })
-                        if not already_downloaded:
-                            allow_download = True
+                        st.session_state[session_key] = True
+                else:
+                    st.warning("🚫 Guests can download only 1 book per day. Please log in to download more.")
 
-                    if allow_download:
-                        st.download_button(
-                            label="📥 Download PDF",
-                            data=data,
-                            file_name=file_name,
-                            mime="application/pdf",
-                            key=f"download_{safe_key(book['_id'])}"
-                        )
-
-                        # Log download only once per book per session
-                        session_key = f"logged_{book['_id']}"
-                        if not st.session_state.get(session_key):
-                            logs_col.insert_one({
-                                "type": "download",
-                                "user": current_user.lower() if current_user else "guest",
-                                "ip": ip,
-                                "book": book["title"],
-                                "author": book.get("author"),
-                                "language": book.get("language"),
-                                "timestamp": datetime.utcnow()
-                            })
-                            st.session_state[session_key] = True
-                    else:
-                        st.warning("🚫 Guests can download only 1 book per day. Please log in to download more.")
-
-                except Exception as e:
-                    st.error(f"❌ Could not retrieve file from storage: {e}")
-                    missing_files.append(book["title"])
+            except Exception as e:
+                st.error(f"❌ Could not retrieve file from storage: {e}")
+                missing_files.append(book["title"])
 
             # ⭐ Bookmark button
-            user = st.session_state.get("user")
-            if user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}")):
+            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}")):
                 fav_col.update_one(
-                    {"user": user, "book_id": str(book['_id'])},
+                    {"user": current_user, "book_id": str(book['_id'])},
                     {"$set": {"timestamp": datetime.utcnow()}},
                     upsert=True
                 )
-                st.success("Bookmarked")
+                st.success("Bookmarked!")
 
-    # Admin: show missing file warnings
+    # Admin notice for missing files
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
