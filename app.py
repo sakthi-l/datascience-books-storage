@@ -258,20 +258,22 @@ def search_books():
 
                     current_user = st.session_state.get("user", None)
                     downloaded= current_user or guest_downloads_today < 1
-                    if downloaded:
-                        logs_col.insert_one({
-                            "type": "download",
-                            "user": current_user.lower() if current_user else "guest",
-                            "ip": ip,
-                            "book": book["title"],
-                            "author": book.get("author"),
-                            "language": book.get("language"),
-                            "timestamp": datetime.utcnow()
-                        })
-
-
-                    else:
-                        st.warning("Guests can download only 1 book per day. Please log in.")
+                    download_button_key = f"download_{safe_key(book['_id'])}"
+                    if st.button("⬇️ Download PDF", key=download_button_key):
+                        if downloaded:
+                            logs_col.insert_one({
+                                "type": "download",
+                                "user": current_user.lower() if current_user else "guest",
+                                "ip": ip,
+                                "book": book["title"],
+                                "author": book.get("author"),
+                                "language": book.get("language"),
+                                "timestamp": datetime.utcnow()
+                            })
+                            st.success("✅ Download logged.")
+                            st.download_button("📥 Click to Download", data, file_name=file_name, mime="application/pdf")
+                        else:
+                            st.warning("Guests can download only 1 book per day. Please log in.")
 
                 except Exception as e:
                     st.error(f"❌ Could not retrieve file from storage: {e}")
