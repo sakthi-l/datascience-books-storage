@@ -417,10 +417,26 @@ def edit_book_metadata():
     language = st.text_input("Language", value=book.get("language", ""))
     keywords = st.text_input("Keywords (comma-separated)", value=", ".join(book.get("keywords", [])))
 
+    # Full course list from syllabus
+    default_courses = [
+        "Probability & Statistics using R", "Mathematics for Data Science",
+        "Python for Data Science", "RDBMS, SQL & Visualization",
+        "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+        "Machine Learning", "Big Data Mining & Analytics",
+        "Predictive Analytics", "Ethics & Data Security",
+        "Applied Spatial Data Analytics Using R", "Machine Vision",
+        "Deep Learning & Applications", "Generative AI with LLMs",
+        "Social Networks & Graph Analysis", "Data Visualization Techniques",
+        "Algorithmic Trading", "Bayesian Data Analysis",
+        "Healthcare Data Analytics", "Data Science for Structural Biology",
+        "Other / Not Mapped"
+    ]
     existing_courses = books_col.distinct("course")
-    existing_courses_sorted = sorted(existing_courses)
-    selected_course_index = existing_courses_sorted.index(book.get("course", "Other / Not Mapped")) if book.get("course") in existing_courses_sorted else 0
-    course = st.selectbox("Course", existing_courses_sorted, index=selected_course_index)
+    all_courses = sorted(set(default_courses + existing_courses))
+    
+    selected_course_index = all_courses.index(book.get("course", "Other / Not Mapped")) if book.get("course") in all_courses else 0
+    course = st.selectbox("Course", all_courses, index=selected_course_index)
+
 
     if st.button("Update Metadata"):
         books_col.update_one(
