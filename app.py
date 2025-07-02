@@ -130,15 +130,24 @@ def upload_book():
 # --- Admin Dashboard ---
 def admin_dashboard():
     st.subheader("📊 Admin Analytics")
+
     total_views = logs_col.count_documents({})
-    total_downloads = logs_col.count_documents({"type": "download"})
+    unique_downloads = logs_col.aggregate([
+        {"$match": {"type": "download"}},
+        {"$group": {"_id": {"user": "$user", "book": "$book", "date": {"$dateToString": {"format": "%Y-%m-%d", "date": "$timestamp"}}}}},
+        {"$count": "count"}
+    ])
+    total_downloads = next(unique_downloads, {}).get("count", 0)
+
     st.metric("Total Activity", total_views)
-    st.metric("Total Downloads", total_downloads)
-    logs = list(logs_col.find())
+    st.metric("Unique Downloads", total_downloads)
+
+    logs = list(logs_col.find().sort("timestamp", -1))
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         st.dataframe(df[['user', 'book', 'timestamp', 'type']])
+
     st.write("### 📚 Books Uploaded per Course")
     course_stats = books_col.aggregate([
         {"$group": {"_id": "$course", "count": {"$sum": 1}}},
@@ -160,7 +169,7 @@ def user_dashboard(user):
     favs = list(fav_col.find({"user": user}))
 
     if logs:
-        df = pd.DataFrame(logs)
+        df = pd.DataFrame(logs).drop_duplicates(subset=["book", "timestamp"])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         st.write("📥 Download History")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
@@ -170,12 +179,14 @@ def user_dashboard(user):
     if favs:
         st.write("⭐ Bookmarked Books")
         book_ids = [ObjectId(f['book_id']) for f in favs]
-        books = books_col.find({"_id": {"$in": book_ids}})
-        for book in books:
-            timestamp = next((f['timestamp'] for f in favs if f['book_id'] == str(book['_id'])), None)
-            if timestamp:
-                st.write(f"📘 {book['title']} — bookmarked at {timestamp.strftime('%Y-%m-%d %H:%M')}")
+        book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": book_ids}})}
 
+        for f in favs:
+            book = book_map.get(f['book_id'])
+            if book:
+                st.markdown(
+                    f"📘 **{book['title']}** – bookmarked at `{f['timestamp'].strftime('%Y-%m-%d %H:%M')}`"
+                )
 
 def search_books():
     st.subheader("🔎 Search Books")
@@ -187,19 +198,22 @@ def search_books():
             keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
 
             languages = [l for l in books_col.distinct("language") if l and l.strip()]
-            default_courses = ["Probability & Statistics using R", "Mathematics for Data Science",
-    "Python for Data Science", "RDBMS, SQL & Visualization",
-    "Data mining Techniques", "Artificial Intelligence and reasoning",
-    "Machine Learning", "Big Data Mining and Analytics",
-    "Predictive Analytics", "Ethics and Data Security",
-    "Applied Spatial Data Analytics Using R", "Machine Vision",
-    "Deep Learning & Applications", "Generative AI with LLMs",
-    "Social Networks and Graph Analysis", "Data Visualization Techniques",
-    "Algorithmic Trading", "Bayesian Data Analysis",
-    "Healthcare Data Analytics", "Data Science for Structural Biology",
-    "Other / Not Mapped"]
+            default_courses = [
+                "Probability & Statistics using R", "Mathematics for Data Science",
+                "Python for Data Science", "RDBMS, SQL & Visualization",
+                "Data mining Techniques", "Artificial Intelligence and reasoning",
+                "Machine Learning", "Big Data Mining and Analytics",
+                "Predictive Analytics", "Ethics and Data Security",
+                "Applied Spatial Data Analytics Using R", "Machine Vision",
+                "Deep Learning & Applications", "Generative AI with LLMs",
+                "Social Networks and Graph Analysis", "Data Visualization Techniques",
+                "Algorithmic Trading", "Bayesian Data Analysis",
+                "Healthcare Data Analytics", "Data Science for Structural Biology",
+                "Other / Not Mapped"
+            ]
             existing_courses = books_col.distinct("course")
             all_courses = dedupe_courses(default_courses, existing_courses)
+
             course_filter = st.selectbox("Course", ["All"] + all_courses, key="search_course")
             language_filter = st.selectbox("Language", ["All"] + sorted(languages), key="search_language")
 
@@ -263,13 +277,15 @@ def search_books():
                 if not is_guest:
                     allow_download = True
                 else:
-                    already_downloaded = logs_col.find_one({
+                    # ✅ Updated: check per-book-per-day
+                    already_logged_this_book = logs_col.find_one({
                         "user": "guest",
                         "ip": ip,
                         "type": "download",
+                        "book": book["title"],
                         "timestamp": {"$gte": today_start}
                     })
-                    if not already_downloaded:
+                    if not already_logged_this_book:
                         allow_download = True
 
                 session_key = f"logged_{book['_id']}"
@@ -283,7 +299,6 @@ def search_books():
                         key=f"download_{safe_key(book['_id'])}"
                     )
 
-                    # Log only once per session per book
                     if not st.session_state.get(session_key):
                         logs_col.insert_one({
                             "type": "download",
@@ -296,26 +311,35 @@ def search_books():
                         })
                         st.session_state[session_key] = True
                 else:
-                    st.warning("🚫 Guests can download only 1 book per day. Please log in to download more.")
+                    st.warning("🚫 Guests can download only 1 copy of a book per day. Please log in to download more.")
 
             except Exception as e:
                 st.error(f"❌ Could not retrieve file from storage: {e}")
                 missing_files.append(book["title"])
 
-            # ⭐ Bookmark button
+            # ⭐ Bookmark button + optional logging
             if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
                 fav_col.update_one(
                     {"user": current_user, "book_id": str(book['_id'])},
                     {"$set": {"timestamp": datetime.utcnow()}},
                     upsert=True
                 )
+                logs_col.insert_one({
+                    "type": "bookmark",
+                    "user": current_user.lower(),
+                    "ip": ip,
+                    "book": book["title"],
+                    "author": book.get("author"),
+                    "language": book.get("language"),
+                    "timestamp": datetime.utcnow()
+                })
                 st.success("Bookmarked!")
 
-    # Admin notice for missing files
     if st.session_state.get("user") == "admin" and missing_files:
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
+
 def delete_book():
     st.subheader("🗑️ Delete Book")
 
