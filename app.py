@@ -168,26 +168,41 @@ def user_dashboard(user):
     logs = list(logs_col.find({"user": user, "type": "download"}))
     favs = list(fav_col.find({"user": user}))
 
+    # 🟦 DOWNLOAD HISTORY SECTION
     if logs:
-        df = pd.DataFrame(logs)
-        df = df.sort_values("timestamp", ascending=False).drop_duplicates(subset=["book"])
+        df = pd.DataFrame(logs).drop_duplicates(subset=["book", "timestamp"])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         st.write("📥 Download History")
         st.dataframe(df[['book', 'author', 'language', 'timestamp']])
     else:
         st.info("You haven't downloaded any books yet.")
 
+    # 🟨 BOOKMARKED BOOKS SECTION
     if favs:
         st.write("⭐ Bookmarked Books")
-        book_ids = [ObjectId(f['book_id']) for f in favs]
-        book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": book_ids}})}
+        book_ids = [ObjectId(f['book_id']) for f in favs if ObjectId.is_valid(f['book_id'])]
+        books = list(books_col.find({"_id": {"$in": book_ids}}))
+        book_map = {str(b["_id"]): b for b in books}
+
+        bookmark_data = []
 
         for f in favs:
             book = book_map.get(f['book_id'])
             if book:
-                st.markdown(
-                    f"📘 **{book['title']}** – bookmarked at `{f['timestamp'].strftime('%Y-%m-%d %H:%M')}`"
-                )
+                bookmark_data.append({
+                    "Title": book["title"],
+                    "Author": book.get("author", "N/A"),
+                    "Language": book.get("language", "N/A"),
+                    "Bookmarked At": f['timestamp'].strftime('%Y-%m-%d %H:%M')
+                })
+            else:
+                st.warning(f"⚠️ Book with ID {f['book_id']} not found (may have been deleted).")
+
+        if bookmark_data:
+            st.dataframe(pd.DataFrame(bookmark_data))
+    else:
+        st.info("You haven't bookmarked any books yet.")
+
 
 def search_books():
     st.subheader("🔎 Search Books")
