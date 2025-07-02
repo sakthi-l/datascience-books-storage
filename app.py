@@ -308,7 +308,40 @@ def search_books():
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
+def delete_book():
+    st.subheader("🗑️ Delete Book")
 
+    books = list(books_col.find().sort("uploaded_at", -1))
+    if not books:
+        st.info("No books available to delete.")
+        return
+
+    book_titles = [f"{b['title']} ({b.get('author', 'Unknown')})" for b in books]
+    selected = st.selectbox("Select Book to Delete", book_titles)
+    book = books[book_titles.index(selected)]
+
+    st.write(f"📘 **{book['title']}** by *{book.get('author', 'Unknown')}*")
+    st.write(f"📚 Course: {book.get('course', 'Not tagged')}")
+    st.write(f"🌐 Language: {book.get('language', 'Unknown')}")
+    st.write(f"📁 File Name: {book.get('file_name', 'N/A')}")
+
+    st.warning("⚠️ This will delete the book permanently, including its file, logs, and favorites.")
+
+    if st.button("❌ Delete This Book"):
+        confirm = st.checkbox("I confirm permanent deletion of this book")
+        if confirm:
+            try:
+                if book.get("file_id"):
+                    fs.delete(ObjectId(book["file_id"]))
+            except Exception as e:
+                st.warning(f"⚠️ Issue deleting file from storage: {e}")
+
+            books_col.delete_one({"_id": book["_id"]})
+            logs_col.delete_many({"book": book["title"]})
+            fav_col.delete_many({"book_id": str(book["_id"])})
+
+            st.success("✅ Book deleted successfully.")
+            rerun()
 def manage_users():
     st.subheader("👥 Manage Users")
 
@@ -578,7 +611,8 @@ def main():
     "👥 Manage Users",
     "📝 Edit Book Metadata",
     "➕ Add Course",
-    "🗑️ Delete Course",    # ✅ Add this
+    "🗑️ Delete Course", 
+    "🗑️ Delete Book",
     "⚠️ Clear Collections"
 ])
 
@@ -599,7 +633,8 @@ def main():
             clear_collections()
         elif admin_tab == "🗑️ Delete Course":
             delete_course()
-
+        elif admin_tab == "🗑️ Delete Book":
+            delete_book()
     else:
         user_dashboard(user)
     
