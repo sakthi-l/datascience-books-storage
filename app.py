@@ -87,13 +87,13 @@ def upload_book():
         keywords = st.text_input("Keywords (comma-separated)", key="upload_keywords")
         course_options = [
             "Probability & Statistics using R", "Mathematics for Data Science",
-            "Python for Data Science", "RDBMS, SQL & Visualization",
-            "Data mining Techniques", "Artificial Intelligence & Reasoning",
-            "Machine Learning", "Big Data Mining & Analytics",
+            "Python for Data Science", "RDBMS, SQL and Visualization",
+            "Data mining Techniques", "Artificial Intelligence and Reasoning",
+            "Machine Learning", "Big Data Mining and Analytics",
             "Predictive Analytics", "Ethics and Data Security",
             "Applied Spatial Data Analytics Using R", "Machine Vision",
-            "Deep Learning & Applications", "Generative AI with LLMs",
-            "Social Networks & Graph Analysis", "Data Visualization Techniques",
+            "Deep Learning and Applications", "Generative AI with LLMs",
+            "Social Networks and Graph Analysis", "Data Visualization Techniques",
             "Algorithmic Trading", "Bayesian Data Analysis",
             "Healthcare Data Analytics", "Data Science for Structural Biology",
             "Other / Not Mapped"
@@ -180,13 +180,13 @@ def search_books():
             existing_courses = books_col.distinct("course")
             default_courses = [
                 "Probability & Statistics using R", "Mathematics for Data Science",
-                "Python for Data Science", "RDBMS, SQL & Visualization",
-                "Data Mining Techniques", "Artificial Intelligence & Reasoning",
+                "Python for Data Science", "RDBMS, SQL and Visualization",
+                "Data mining Techniques", "Artificial Intelligence and Reasoning",
                 "Machine Learning", "Big Data Mining & Analytics",
-                "Predictive Analytics", "Ethics & Data Security",
+                "Predictive Analytics", "Ethics and Data Security",
                 "Applied Spatial Data Analytics Using R", "Machine Vision",
-                "Deep Learning & Applications", "Generative AI with LLMs",
-                "Social Networks & Graph Analysis", "Data Visualization Techniques",
+                "Deep Learning and Applications", "Generative AI with LLMs",
+                "Social Networks and Graph Analysis", "Data Visualization Techniques",
                 "Algorithmic Trading", "Bayesian Data Analysis",
                 "Healthcare Data Analytics", "Data Science for Structural Biology",
                 "Other / Not Mapped"
