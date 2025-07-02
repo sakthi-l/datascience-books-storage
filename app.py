@@ -179,39 +179,14 @@ def user_dashboard(user):
     else:
         st.info("You haven't downloaded any books yet.")
 
-    # --- BOOKMARKED BOOKS ---
-    if favs:
-        st.write("⭐ Bookmarked Books")
+def search_books():
+    st.subheader("🔎 Search Books")
 
-        # Only include valid ObjectId strings
-        valid_ids = []
-        for f in favs:
-            try:
-                valid_ids.append(ObjectId(f["book_id"]))
-            except:
-                continue
-
-        book_map = {str(b["_id"]): b for b in books_col.find({"_id": {"$in": valid_ids}})}
-
-        for f in favs:
-            bid = f.get("book_id")
-            book = book_map.get(bid)
-            ts = f.get("timestamp")
-
-            if book:
-                timestamp_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "Unknown"
-                st.markdown(f"📘 **{book['title']}** – bookmarked at `{timestamp_str}`")
-            else:
-                st.warning(f"⚠️ Could not find book for ID: {bid}")
-    else:
-        st.info("You haven't bookmarked any books yet.")
-
-
-    with st.form("search_form"):
+    with st.form("public_search_form"):
         with st.expander("🔧 Advanced Search Filters", expanded=True):
-            title = st.text_input("Title", key="search_title")
-            author = st.text_input("Author", key="search_author")
-            keyword_input = st.text_input("Keywords (any match)", key="search_keywords")
+            title = st.text_input("Title", key="public_search_title")
+            author = st.text_input("Author", key="public_search_author")
+            keyword_input = st.text_input("Keywords (any match)", key="public_search_keywords")
 
             languages = [l for l in books_col.distinct("language") if l and l.strip()]
             default_courses = [
@@ -230,8 +205,8 @@ def user_dashboard(user):
             existing_courses = books_col.distinct("course")
             all_courses = dedupe_courses(default_courses, existing_courses)
 
-            course_filter = st.selectbox("Course", ["All"] + all_courses, key="search_course")
-            language_filter = st.selectbox("Language", ["All"] + sorted(languages), key="search_language")
+            course_filter = st.selectbox("Course", ["All"] + all_courses, key="public_search_course")
+            language_filter = st.selectbox("Language", ["All"] + sorted(languages), key="public_search_language")
 
         submitted = st.form_submit_button("🔍 Search")
 
@@ -264,9 +239,8 @@ def user_dashboard(user):
 
     ip = get_ip()
     today_start = datetime.combine(datetime.utcnow().date(), time.min)
-    current_user = st.session_state.get("user", None)
-    is_guest = current_user is None
-    missing_files = []
+    is_guest = "user" not in st.session_state
+    current_user = st.session_state.get("user")
 
     for book in books:
         with st.expander(book["title"]):
@@ -278,7 +252,6 @@ def user_dashboard(user):
             file_id = book.get("file_id")
             if not file_id:
                 st.warning("⚠️ No file associated with this book.")
-                missing_files.append(book["title"])
                 continue
 
             try:
@@ -293,7 +266,6 @@ def user_dashboard(user):
                 if not is_guest:
                     allow_download = True
                 else:
-                    # ✅ Updated: check per-book-per-day
                     already_logged_this_book = logs_col.find_one({
                         "user": "guest",
                         "ip": ip,
@@ -304,7 +276,7 @@ def user_dashboard(user):
                     if not already_logged_this_book:
                         allow_download = True
 
-                session_key = f"logged_{book['_id']}"
+                session_key = f"public_logged_{book['_id']}"
 
                 if allow_download:
                     st.download_button(
@@ -312,7 +284,7 @@ def user_dashboard(user):
                         data=data,
                         file_name=file_name,
                         mime="application/pdf",
-                        key=f"download_{safe_key(book['_id'])}"
+                        key=f"public_download_{safe_key(book['_id'])}"
                     )
 
                     if not st.session_state.get(session_key):
@@ -331,32 +303,7 @@ def user_dashboard(user):
 
             except Exception as e:
                 st.error(f"❌ Could not retrieve file from storage: {e}")
-                missing_files.append(book["title"])
 
-            # ⭐ Bookmark button + optional logging
-            if current_user and st.button("⭐ Bookmark", key=f"bookmark_{safe_key(book['_id'])}"):
-                fav_col.update_one(
-                    {"user": current_user, "book_id": str(book['_id'])},
-                    {"$set": {"timestamp": datetime.utcnow()}},
-                    upsert=True
-                )
-                logs_col.insert_one({
-                    "type": "bookmark",
-                    "user": current_user.lower(),
-                    "ip": ip,
-                    "book": book["title"],
-                    "author": book.get("author"),
-                    "language": book.get("language"),
-                    "timestamp": datetime.utcnow()
-                })
-                st.success("Bookmarked!")
-
-
-
-    if st.session_state.get("user") == "admin" and missing_files:
-        st.error("⚠️ The following books have missing or invalid files:")
-        for title in missing_files:
-            st.write(f"- {title}")
 def delete_book():
     st.subheader("🗑️ Delete Book")
 
