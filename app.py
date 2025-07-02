@@ -339,7 +339,6 @@ def search_books():
         st.error("⚠️ The following books have missing or invalid files:")
         for title in missing_files:
             st.write(f"- {title}")
-
 def delete_book():
     st.subheader("🗑️ Delete Book")
 
@@ -357,11 +356,14 @@ def delete_book():
     st.write(f"🌐 Language: {book.get('language', 'Unknown')}")
     st.write(f"📁 File Name: {book.get('file_name', 'N/A')}")
 
-    st.warning("⚠️ This will delete the book permanently, including its file, logs, and favorites.")
+    key = f"confirm_delete_{book['_id']}"
 
-    if st.button("❌ Delete This Book"):
-        confirm = st.checkbox("I confirm permanent deletion of this book")
-        if confirm:
+    if not st.session_state.get(key):
+        if st.button("❌ Confirm Delete", key=f"confirm_btn_{book['_id']}"):
+            st.session_state[key] = True
+            st.warning("⚠️ Click again to permanently delete this book.")
+    else:
+        if st.button("✅ Yes, Delete", key=f"final_delete_btn_{book['_id']}"):
             try:
                 if book.get("file_id"):
                     fs.delete(ObjectId(book["file_id"]))
@@ -373,6 +375,7 @@ def delete_book():
             fav_col.delete_many({"book_id": str(book["_id"])})
 
             st.success("✅ Book deleted successfully.")
+            del st.session_state[key]
             rerun()
 def manage_users():
     st.subheader("👥 Manage Users")
@@ -422,16 +425,22 @@ def manage_users():
                     rerun()
 
             with col2:
-                if st.button("❌ Delete User", key=f"delete_{safe_key(user['_id'])}"):
-                    if user["username"] == st.session_state.get("user"):
-                        st.error("You cannot delete your own account while logged in.")
-                    else:
-                        if st.checkbox(f"Confirm delete {user['username']}?", key=f"confirm_{safe_key(user['_id'])}"):
-                            users_col.delete_one({"_id": user["_id"]})
-                            logs_col.delete_many({"user": user["username"]})
-                            fav_col.delete_many({"user": user["username"]})
-                            st.warning("User deleted")
-                            rerun()
+                delete_key = f"confirm_user_delete_{user['_id']}"
+                if not st.session_state.get(delete_key):
+                    if st.button("❌ Confirm Delete", key=f"delete_btn_{safe_key(user['_id'])}"):
+                        if user["username"] == st.session_state.get("user"):
+                            st.error("You cannot delete your own account while logged in.")
+                        else:
+                            st.session_state[delete_key] = True
+                            st.warning("⚠️ Click again to permanently delete this user.")
+                else:
+                    if st.button("✅ Yes, Delete", key=f"final_user_delete_btn_{safe_key(user['_id'])}"):
+                        users_col.delete_one({"_id": user["_id"]})
+                        logs_col.delete_many({"user": user["username"]})
+                        fav_col.delete_many({"user": user["username"]})
+                        st.warning(f"✅ User '{user['username']}' deleted.")
+                        del st.session_state[delete_key]
+                        rerun()
 
 def edit_book_metadata():
     st.subheader("📝 Edit Book Metadata")
