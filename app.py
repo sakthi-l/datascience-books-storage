@@ -163,28 +163,28 @@ def admin_dashboard():
 # --- User Dashboard ---
 def user_dashboard(user):
     import datetime
-    
+
     st.subheader("📊 Your Dashboard")
 
     user = user.lower()
     logs = list(logs_col.find({"user": user, "type": "download"}))
-    favs = list(fav_col.find({"user": user}))
 
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-        # Date filter input - defaults to today (UTC)
         selected_date = st.date_input(
             "Filter downloads by date", 
             value=datetime.datetime.utcnow().date()
         )
 
-        # Filter logs by selected date
         df_filtered = df[df['timestamp'].dt.date == selected_date]
 
-        # Deduplicate by book title (optional)
-        df_filtered = df_filtered.drop_duplicates(subset=['book'])
+        # Normalize book and author names for deduplication
+        df_filtered['book_clean'] = df_filtered['book'].str.strip().str.lower()
+        df_filtered['author_clean'] = df_filtered['author'].str.strip().str.lower()
+
+        df_filtered = df_filtered.drop_duplicates(subset=['book_clean', 'author_clean'])
 
         st.write(f"📥 Download History for {selected_date}")
         if not df_filtered.empty:
