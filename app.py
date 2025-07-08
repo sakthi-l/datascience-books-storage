@@ -162,22 +162,38 @@ def admin_dashboard():
 
 # --- User Dashboard ---
 def user_dashboard(user):
+    import datetime
+    
     st.subheader("📊 Your Dashboard")
 
     user = user.lower()
     logs = list(logs_col.find({"user": user, "type": "download"}))
     favs = list(fav_col.find({"user": user}))
 
-    # --- DOWNLOAD HISTORY (Deduped per book per day) ---
     if logs:
         df = pd.DataFrame(logs)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df['date_only'] = df['timestamp'].dt.date
-        df = df.drop_duplicates(subset=["book", "date_only"])
-        st.write("📥 Download History")
-        st.dataframe(df[['book', 'author', 'language', 'timestamp']])
+
+        # Date filter input - defaults to today (UTC)
+        selected_date = st.date_input(
+            "Filter downloads by date", 
+            value=datetime.datetime.utcnow().date()
+        )
+
+        # Filter logs by selected date
+        df_filtered = df[df['timestamp'].dt.date == selected_date]
+
+        # Deduplicate by book title (optional)
+        df_filtered = df_filtered.drop_duplicates(subset=['book'])
+
+        st.write(f"📥 Download History for {selected_date}")
+        if not df_filtered.empty:
+            st.dataframe(df_filtered[['book', 'author', 'language', 'timestamp']])
+        else:
+            st.info("No downloads found for this date.")
     else:
         st.info("You haven't downloaded any books yet.")
+
 
 def search_books():
     st.subheader("🔎 Search Books")
