@@ -163,6 +163,15 @@ def admin_dashboard():
 # --- User Dashboard ---
 def user_dashboard(user):
     import datetime
+    import re
+
+    def clean_text(text):
+        if not isinstance(text, str):
+            return text
+        text = text.strip().lower()
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'[^\x20-\x7E]', '', text)
+        return text
 
     st.subheader("📊 Your Dashboard")
 
@@ -180,11 +189,15 @@ def user_dashboard(user):
 
         df_filtered = df[df['timestamp'].dt.date == selected_date]
 
-        # Normalize book and author names for deduplication
-        df_filtered['book_clean'] = df_filtered['book'].str.strip().str.lower()
-        df_filtered['author_clean'] = df_filtered['author'].str.strip().str.lower()
+        df_filtered['book_clean'] = df_filtered['book'].apply(clean_text)
+        df_filtered['author_clean'] = df_filtered['author'].apply(clean_text)
 
-        df_filtered = df_filtered.drop_duplicates(subset=['book_clean', 'author_clean'])
+        dupes = df_filtered[df_filtered.duplicated(subset=['book_clean', 'author_clean'], keep=False)]
+        if not dupes.empty:
+            st.write("⚠️ Duplicates detected BEFORE deduplication:")
+            st.dataframe(dupes[['book', 'author', 'language', 'timestamp']])
+
+        df_filtered = df_filtered.drop_duplicates(subset=['book_clean', 'author_clean', 'language'])
 
         st.write(f"📥 Download History for {selected_date}")
         if not df_filtered.empty:
@@ -193,6 +206,7 @@ def user_dashboard(user):
             st.info("No downloads found for this date.")
     else:
         st.info("You haven't downloaded any books yet.")
+
 
 
 def search_books():
